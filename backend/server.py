@@ -157,6 +157,119 @@ async def speech_to_text(audio: UploadFile = File(...), language: Optional[str] 
         raise HTTPException(status_code=500, detail=f"Speech-to-text failed: {str(e)}")
 
 
+class ConversationRequest(BaseModel):
+    """Request for conversation mode - transcribe, detect language, translate, and generate audio"""
+    pass
+
+
+@api_router.post("/conversation")
+async def conversation_mode(audio: UploadFile = File(...)):
+    """
+    Conversation mode: 
+    1. Transcribe audio (auto-detect language)
+    2. Detect if English or Spanish
+    3. Translate to the other language
+    4. Return transcription, translation, detected language, and audio
+    """
+    try:
+        # Read audio file
+        audio_content = await audio.read()
+        
+        if len(audio_content) < 1000:  # Too short, likely silence
+            return {
+                "detected_language": None,
+                "original_text": "",
+                "translated_text": "",
+                "audio": None,
+                "skipped": True
+            }
+        
+        # Initialize STT (auto-detect language by not specifying language)
+        stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
+        
+        import io
+        audio_file = io.BytesIO(audio_content)
+        audio_file.name = audio.filename or "audio.webm"
+        
+        # Transcribe with verbose_json to get detected language
+        response = await stt.transcribe(
+            file=audio_file,
+            model="whisper-1",
+            response_format="verbose_json"
+        )
+        
+        original_text = response.text.strip()
+        if not original_text:
+            return {
+                "detected_language": None,
+                "original_text": "",
+                "translated_text": "",
+                "audio": None,
+                "skipped": True
+            }
+        
+        # Get detected language from Whisper
+        detected_lang = getattr(response, 'language', None)
+        
+        # Determine source and target languages
+        # If Whisper detected Spanish, translate to English. Otherwise, translate to Spanish.
+        if detected_lang == "spanish" or detected_lang == "es":
+            source_lang = "es"
+            target_lang = "en"
+            source_name = "Spanish"
+            target_name = "English"
+        else:
+            # Default to English -> Spanish
+            source_lang = "en"
+            target_lang = "es"
+            source_name = "English"
+            target_name = "Spanish"
+        
+        # Translate using GPT-5.2
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"conversation-{uuid.uuid4()}",
+            system_message=f"You are a professional translator. Translate the following text from {source_name} to {target_name}. Only respond with the translation, nothing else."
+        ).with_model("openai", "gpt-5.2")
+        
+        user_message = UserMessage(text=original_text)
+        translated_text = await chat.send_message(user_message)
+        
+        # Generate TTS for the translation
+        tts = OpenAITextToSpeech(api_key=EMERGENT_LLM_KEY)
+        audio_bytes = await tts.generate_speech(
+            text=translated_text,
+            model="tts-1",
+            voice="nova",
+            response_format="mp3"
+        )
+        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+        
+        # Store in history
+        history_entry = TranslationHistory(
+            original_text=original_text,
+            translated_text=translated_text,
+            source_lang=source_lang,
+            target_lang=target_lang
+        )
+        doc = history_entry.model_dump()
+        doc['timestamp'] = doc['timestamp'].isoformat()
+        await db.translation_history.insert_one(doc)
+        
+        return {
+            "detected_language": source_lang,
+            "original_text": original_text,
+            "translated_text": translated_text,
+            "target_language": target_lang,
+            "audio": audio_base64,
+            "skipped": False
+        }
+        
+    except Exception as e:
+        logger.error(f"Conversation mode error: {e}")
+        raise HTTPException(status_code=500, detail=f"Conversation mode failed: {str(e)}")
+
+
 @api_router.post("/text-to-speech")
 async def text_to_speech(request: TTSRequest):
     """Convert text to speech using OpenAI TTS"""
