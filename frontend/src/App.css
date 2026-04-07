@@ -1,34 +1,216 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* Swiss Brutalist Translator Styles */
+
+.translator-container {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.translator-header {
+  border-bottom: 1px solid var(--text);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
+.translator-main {
+  display: grid;
+  grid-template-columns: 1fr;
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .translator-main {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.translator-pane {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--text);
+}
+
+@media (min-width: 768px) {
+  .translator-pane {
+    border-bottom: none;
+  }
+  
+  .translator-pane:first-child {
+    border-right: 1px solid var(--text);
+  }
+}
+
+.pane-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pane-content {
+  flex: 1;
+  padding: 1.5rem;
+  min-height: 200px;
+}
+
+@media (min-width: 768px) {
+  .pane-content {
+    min-height: 300px;
+  }
+}
+
+.pane-toolbar {
+  border-top: 1px solid var(--text);
+  display: flex;
+}
+
+.toolbar-btn {
+  padding: 0.75rem 1rem;
+  border-right: 1px solid var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  transition: all 150ms linear;
+}
+
+.toolbar-btn:hover {
+  background: var(--text);
+  color: var(--background);
+}
+
+.toolbar-btn:last-child {
+  border-right: none;
+}
+
+/* Swap button positioning */
+.swap-button-container {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+
+@media (max-width: 767px) {
+  .swap-button-container {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+    padding: 1rem;
+    border-bottom: 1px solid var(--text);
+  }
 }
 
-.App-link {
-    color: #61dafb;
+.swap-button {
+  width: 48px;
+  height: 48px;
+  border: 2px solid var(--text);
+  background: var(--background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms linear;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.swap-button:hover {
+  background: var(--text);
+  color: var(--background);
+  transform: rotate(180deg);
+}
+
+/* Language label */
+.lang-label {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* Text areas */
+.translator-textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 150px;
+  background: transparent;
+  border: none;
+  resize: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+  .translator-textarea {
+    font-size: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .translator-textarea {
+    font-size: 1.75rem;
+  }
+}
+
+.translator-textarea::placeholder {
+  color: #999;
+}
+
+.translator-textarea:focus {
+  outline: none;
+}
+
+/* Output text */
+.output-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+@media (min-width: 768px) {
+  .output-text {
+    font-size: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .output-text {
+    font-size: 1.75rem;
+  }
+}
+
+.output-placeholder {
+  color: #999;
+}
+
+/* Status indicator */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.status-dot.error {
+  background: var(--danger);
+}
+
+.status-dot.loading {
+  background: var(--warning);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
