@@ -1,0 +1,92 @@
+{
+  "project_name": "Swiss-Style Real-time Translator",
+  "theme": "light",
+  "archetype": "4 (Swiss & High-Contrast)",
+  "design_philosophy": {
+    "vibe": "Objective, rigid, functional, technical.",
+    "rules": [
+      "Use 'Grid Borders' micro-theme: Expose the skeleton with 1px solid borders.",
+      "No rounded corners anywhere (`rounded-none`).",
+      "95% monochrome. Color exists only to guide action (e.g., Active Mic = Signal Red, Success/Focus = Klein Blue).",
+      "Generous spacing inside grid items (`p-8` or `p-12`).",
+      "Optical clarity over decorative fluff."
+    ]
+  },
+  "typography": {
+    "headings_font": "Cabinet Grotesk",
+    "body_font": "IBM Plex Mono",
+    "scale": {
+      "h1": "text-4xl sm:text-5xl tracking-tight font-black uppercase",
+      "h2": "text-2xl sm:text-3xl tracking-tight font-bold uppercase",
+      "overline": "text-xs tracking-[0.2em] uppercase font-bold",
+      "body": "text-base leading-relaxed font-mono",
+      "large_input": "text-2xl sm:text-3xl lg:text-4xl leading-snug font-mono focus:outline-none"
+    }
+  },
+  "colors": {
+    "background": "#FFFFFF",
+    "text": "#000000",
+    "border": "#000000",
+    "surface": "#F8F8F8",
+    "primary": "#002FA7", 
+    "danger": "#FF3B30",
+    "warning": "#FFCC00"
+  },
+  "spacing": {
+    "container_padding": "p-6 md:p-12",
+    "gap": "gap-0"
+  },
+  "layout": {
+    "structure": "A massive screen-filling CSS Grid container (`h-screen`).",
+    "grid_setup": [
+      "Header spans full width, bottom border.",
+      "Main area split 50/50: Left is Source, Right is Target (or Top/Bottom on mobile).",
+      "Divided by a 1px solid black border.",
+      "The swap button sits exactly on the intersection of the two panes."
+    ]
+  },
+  "components_strategy": {
+    "inputs": "Naked textareas (`bg-transparent border-none resize-none focus:ring-0`). Let the grid cell act as the bounding box.",
+    "buttons": "Sharp edges, flat colors. Hover state inverts background and text color (`hover:bg-black hover:text-white`).",
+    "toolbars": "Located at the bottom of each pane, separated by a top border within the pane. Flex layout, items separated by right borders."
+  },
+  "motion": {
+    "hover": "Instant color inversion or sharp translation (`-translate-y-1` with hard shadow). No soft easing.",
+    "active": "Mic recording pulses border or text color in Signal Red.",
+    "transitions": "transition-all duration-150 ease-linear"
+  },
+  "icons": {
+    "library": "@phosphor-icons/react",
+    "style": "Regular or Bold weight, sharp and functional."
+  },
+  "features": {
+    "real_time_translation": "Translate dynamically as the user types (with debounce logic).",
+    "speech_to_text": "Whisper-powered voice input. Show recording status clearly.",
+    "text_to_speech": "Play audio of the translated text.",
+    "bidirectional": "Swap button switches the source/target languages and swaps the current text.",
+    "copy": "Copy to clipboard button with feedback."
+  },
+  "test_attributes": {
+    "source_input": "data-testid=\"source-input\"",
+    "target_output": "data-testid=\"target-output\"",
+    "swap_button": "data-testid=\"swap-languages-button\"",
+    "mic_button": "data-testid=\"mic-button\"",
+    "speaker_source_button": "data-testid=\"speaker-source-button\"",
+    "speaker_target_button": "data-testid=\"speaker-target-button\"",
+    "copy_button": "data-testid=\"copy-button\"",
+    "source_language_label": "data-testid=\"source-language-label\"",
+    "target_language-label": "data-testid=\"target-language-label\""
+  },
+  "instructions_to_main_agent": [
+    "Use standard .js files for React components, NOT .tsx.",
+    "Install and use @phosphor-icons/react for icons.",
+    "Do not use generic Shadcn Card or Input wrappers if they introduce rounded corners or default ring shadows. Stick to the 'Swiss Brutalism' raw HTML/Tailwind approach: 'border border-black rounded-none'.",
+    "Implement the UI as a split-screen design on desktop (grid-cols-2) and stacked on mobile (grid-cols-1).",
+    "For the swap button, position it absolutely in the center of the grid on desktop, or simply between the two panes.",
+    "Ensure the translation is called via a mocked API or an actual GPT-5.2 service if provided in the backend. If mocked, highlight it clearly in the UI.",
+    "Ensure Whisper and TTS are integrated. If audio APIs aren't fully available, mock the endpoints but keep the UI fully functional with state changes (e.g., playing state, recording state)."
+  ],
+  "media": {
+    "image_urls": []
+  }
+}
