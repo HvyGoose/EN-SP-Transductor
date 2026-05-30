@@ -10,7 +10,8 @@ import {
   Check,
   Stop,
   Chats,
-  X
+  X,
+  Question
 } from "@phosphor-icons/react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -845,6 +846,16 @@ function App() {
           Translator
         </h1>
         <div className="flex items-center gap-4">
+          <a
+            href="/guide.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="swiss-btn flex items-center gap-1 px-2 py-2 border border-black text-sm font-mono"
+            data-testid="help-link"
+            title="User Guide"
+          >
+            <Question size={18} weight="bold" />
+          </a>
           <button
             data-testid="conversation-mode-btn"
             className={`swiss-btn flex items-center gap-2 px-3 py-2 border border-black text-sm font-mono uppercase tracking-wider ${conversationMode ? 'bg-black text-white' : ''}`}
