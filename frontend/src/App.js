@@ -37,8 +37,10 @@ function App() {
   const [handsFreeStatus, setHandsFreeStatus] = useState('waiting'); // 'waiting', 'listening', 'recording', 'processing'
   const [audioLevel, setAudioLevel] = useState(0);
   const [silenceDuration, setSilenceDuration] = useState(2); // Default 2 seconds
+  const [sensitivity, setSensitivity] = useState(25); // Default threshold (higher = less sensitive)
   const [peakAudioLevel, setPeakAudioLevel] = useState(0); // Track peak level during recording
   const silenceDurationRef = useRef(2);
+  const sensitivityRef = useRef(25);
   const peakAudioLevelRef = useRef(0);
   const conversationRecorderRef = useRef(null);
   const conversationStreamRef = useRef(null);
@@ -351,7 +353,7 @@ function App() {
       const normalizedLevel = Math.min(100, average * 1.5);
       setAudioLevel(normalizedLevel);
       
-      const SPEECH_THRESHOLD = 15; // Adjust this value based on testing
+      const SPEECH_THRESHOLD = sensitivityRef.current; // Use user setting
       const SILENCE_DURATION = silenceDurationRef.current * 1000; // Use user setting
       
       if (average > SPEECH_THRESHOLD) {
@@ -421,8 +423,9 @@ function App() {
     }
     
     // Skip if peak audio level was too low (likely background noise, not real speech)
-    if (peakAudioLevelRef.current < 20) {
-      console.log("Peak audio level too low, likely noise - skipping");
+    const minPeakLevel = sensitivityRef.current * 1.5; // Must be significantly above threshold
+    if (peakAudioLevelRef.current < minPeakLevel) {
+      console.log(`Peak audio level ${peakAudioLevelRef.current} below min ${minPeakLevel} - skipping`);
       restartListening();
       return;
     }
@@ -767,6 +770,32 @@ function App() {
                       <span>1s</span>
                       <span>3s</span>
                       <span>5s</span>
+                    </div>
+                  </div>
+                  
+                  {/* Sensitivity setting */}
+                  <div className="silence-setting">
+                    <label className="text-xs font-mono uppercase tracking-wider text-gray-600">
+                      Noise Filter: {sensitivity < 20 ? 'Low' : sensitivity < 35 ? 'Medium' : sensitivity < 50 ? 'High' : 'Max'}
+                    </label>
+                    <input
+                      type="range"
+                      min="10"
+                      max="60"
+                      step="5"
+                      value={sensitivity}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        setSensitivity(val);
+                        sensitivityRef.current = val;
+                      }}
+                      className="silence-slider"
+                      data-testid="sensitivity-slider"
+                    />
+                    <div className="silence-labels">
+                      <span>Quiet</span>
+                      <span>Normal</span>
+                      <span>Noisy</span>
                     </div>
                   </div>
                   
