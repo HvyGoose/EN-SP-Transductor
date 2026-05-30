@@ -34,16 +34,21 @@ function App() {
   const [conversationHistory, setConversationHistory] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [handsFreeMode, setHandsFreeMode] = useState(false);
-  const [handsFreeStatus, setHandsFreeStatus] = useState('waiting'); // 'waiting', 'recording', 'processing'
+  const [handsFreeStatus, setHandsFreeStatus] = useState('waiting'); // 'waiting', 'listening', 'recording', 'processing'
+  const [audioLevel, setAudioLevel] = useState(0);
   const conversationRecorderRef = useRef(null);
   const conversationStreamRef = useRef(null);
   const silenceTimeoutRef = useRef(null);
   const conversationModeRef = useRef(false);
   const handsFreeModeRef = useRef(false);
-  const handsFreeStatusRef = useRef('waiting'); // Ref to track status in callbacks
-  const handsFreeChunksRef = useRef([]);
+  const handsFreeStatusRef = useRef('waiting');
   const handsFreeRecorderRef = useRef(null);
-  const handsFreeListeningRef = useRef(false);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const animationFrameRef = useRef(null);
+  const isSpeakingRef = useRef(false);
+  const silenceStartRef = useRef(null);
+  const recordingChunksRef = useRef([]);
   
   // Refs
   const debounceRef = useRef(null);
@@ -209,6 +214,11 @@ function App() {
     setIsProcessing(false);
     setHandsFreeMode(false);
     setHandsFreeStatus('waiting');
+    handsFreeStatusRef.current = 'waiting';
+    
+    // Stop silence detection
+    stopSilenceDetection();
+    
     if (conversationRecorderRef.current && conversationRecorderRef.current.state === 'recording') {
       conversationRecorderRef.current.stop();
     }
@@ -228,209 +238,202 @@ function App() {
   // Toggle between Press & Hold and Hands-free modes
   const toggleHandsFreeMode = () => {
     if (!handsFreeMode) {
-      // Switch to hands-free
+      // Switch to hands-free (silence detection)
       setHandsFreeMode(true);
       handsFreeModeRef.current = true;
-      setHandsFreeStatus('waiting');
-      handsFreeStatusRef.current = 'waiting';
-      handsFreeChunksRef.current = [];
-      toast.success("Hands-free mode! Say 'Translator listen' to start.");
-      // Start listening after a brief delay
-      setTimeout(() => {
-        if (handsFreeModeRef.current && conversationStreamRef.current) {
-          startHandsFreeListening();
-        }
-      }, 300);
+      setHandsFreeStatus('listening');
+      handsFreeStatusRef.current = 'listening';
+      toast.success("Hands-free mode! Just speak, pause when done.");
+      startSilenceDetection();
     } else {
       // Switch back to press & hold
+      stopSilenceDetection();
       setHandsFreeMode(false);
       handsFreeModeRef.current = false;
       setHandsFreeStatus('waiting');
       handsFreeStatusRef.current = 'waiting';
-      handsFreeListeningRef.current = false;
-      if (handsFreeRecorderRef.current && handsFreeRecorderRef.current.state === 'recording') {
-        handsFreeRecorderRef.current.stop();
-      }
       toast.success("Press & Hold mode ready!");
     }
   };
 
-  // Hands-free continuous listening
-  const startHandsFreeListening = () => {
-    if (!conversationStreamRef.current || !handsFreeModeRef.current || !conversationModeRef.current) {
-      console.log("Cannot start hands-free: missing stream or mode disabled");
-      return;
-    }
-    
-    if (handsFreeListeningRef.current) {
-      console.log("Already listening, skipping");
-      return;
-    }
-    
-    const currentStatus = handsFreeStatusRef.current;
-    console.log("Starting hands-free listening, status:", currentStatus);
-    handsFreeListeningRef.current = true;
-    
-    // Use shorter intervals when recording to catch stop command faster
-    const chunkDuration = currentStatus === 'recording' ? 1500 : 2500;
-    
+  // Start silence detection using Web Audio API
+  const startSilenceDetection = async () => {
+    if (!conversationStreamRef.current) return;
+
     try {
+      // Create audio context and analyser
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.8;
+      analyserRef.current = analyser;
+      
+      const source = audioContext.createMediaStreamSource(conversationStreamRef.current);
+      source.connect(analyser);
+      
+      // Start the media recorder (always recording)
       const mediaRecorder = new MediaRecorder(conversationStreamRef.current, { mimeType: 'audio/webm' });
       handsFreeRecorderRef.current = mediaRecorder;
-      const chunks = [];
-
+      recordingChunksRef.current = [];
+      
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          chunks.push(event.data);
+          recordingChunksRef.current.push(event.data);
         }
       };
-
+      
       mediaRecorder.onstop = async () => {
-        handsFreeListeningRef.current = false;
-        
-        if (!handsFreeModeRef.current || !conversationModeRef.current) {
-          console.log("Mode disabled, stopping");
-          return;
-        }
-        
-        if (chunks.length === 0) {
-          console.log("No chunks, restarting listener");
-          setTimeout(() => startHandsFreeListening(), 100);
-          return;
-        }
-
-        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-        console.log("Processing audio blob, size:", audioBlob.size, "status:", handsFreeStatusRef.current);
-        
-        // Always accumulate when recording
-        if (handsFreeStatusRef.current === 'recording') {
-          handsFreeChunksRef.current.push(...chunks);
-          console.log("Accumulated chunks, total:", handsFreeChunksRef.current.length);
-        }
-        
-        const formData = new FormData();
-        formData.append('audio', audioBlob, 'handsfree.webm');
-
-        try {
-          const response = await axios.post(`${API}/handsfree-check`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-          
-          const { trigger, text } = response.data;
-          console.log("Trigger check result:", trigger, "Text:", text, "Current status:", handsFreeStatusRef.current);
-          
-          if (trigger === 'start' && handsFreeStatusRef.current === 'waiting') {
-            console.log("START trigger detected!");
-            setHandsFreeStatus('recording');
-            handsFreeStatusRef.current = 'recording';
-            handsFreeChunksRef.current = [...chunks]; // Start with this audio
-            toast.info("Recording... Say 'Stop' when done");
-            
-            // Start a max recording timer (30 seconds)
-            setTimeout(() => {
-              if (handsFreeStatusRef.current === 'recording') {
-                console.log("Max recording time reached, auto-stopping");
-                processAndTranslate();
-              }
-            }, 30000);
-            
-          } else if (trigger === 'stop' && handsFreeStatusRef.current === 'recording') {
-            console.log("STOP trigger detected! Processing...");
-            await processAndTranslate();
-            return; // Don't restart yet, processAndTranslate will handle it
-          }
-          
-          // Continue listening loop
-          if (handsFreeModeRef.current && conversationModeRef.current && handsFreeStatusRef.current !== 'processing') {
-            setTimeout(() => startHandsFreeListening(), 50);
-          }
-        } catch (err) {
-          console.error("Hands-free check error:", err);
-          if (handsFreeModeRef.current && conversationModeRef.current) {
-            setTimeout(() => startHandsFreeListening(), 300);
-          }
+        if (recordingChunksRef.current.length > 0 && handsFreeStatusRef.current === 'processing') {
+          await processRecordedAudio();
         }
       };
-
-      mediaRecorder.onerror = (err) => {
-        console.error("MediaRecorder error:", err);
-        handsFreeListeningRef.current = false;
-        if (handsFreeModeRef.current && conversationModeRef.current) {
-          setTimeout(() => startHandsFreeListening(), 500);
-        }
-      };
-
-      mediaRecorder.start();
-      console.log("MediaRecorder started, duration:", chunkDuration);
-
-      // Record chunks
-      setTimeout(() => {
-        if (mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
-        }
-      }, chunkDuration);
+      
+      // Start recording in chunks
+      mediaRecorder.start(100); // Collect data every 100ms
+      
+      // Start monitoring audio levels
+      monitorAudioLevel();
       
     } catch (err) {
-      console.error("Failed to start MediaRecorder:", err);
-      handsFreeListeningRef.current = false;
-      if (handsFreeModeRef.current && conversationModeRef.current) {
-        setTimeout(() => startHandsFreeListening(), 1000);
-      }
+      console.error("Failed to start silence detection:", err);
+      toast.error("Could not start audio monitoring");
     }
   };
 
-  // Process accumulated audio and translate
-  const processAndTranslate = async () => {
-    console.log("=== PROCESS AND TRANSLATE ===");
-    console.log("Chunks count:", handsFreeChunksRef.current.length);
+  // Stop silence detection
+  const stopSilenceDetection = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    if (handsFreeRecorderRef.current && handsFreeRecorderRef.current.state === 'recording') {
+      handsFreeRecorderRef.current.stop();
+    }
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+    }
+    isSpeakingRef.current = false;
+    silenceStartRef.current = null;
+    setAudioLevel(0);
+  };
+
+  // Monitor audio levels for speech detection
+  const monitorAudioLevel = () => {
+    if (!analyserRef.current || !handsFreeModeRef.current) return;
     
-    if (handsFreeChunksRef.current.length === 0) {
-      console.log("No audio to process");
-      setHandsFreeStatus('waiting');
-      handsFreeStatusRef.current = 'waiting';
-      toast.info("No audio captured. Try again.");
-      setTimeout(() => startHandsFreeListening(), 500);
+    const analyser = analyserRef.current;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    
+    const checkLevel = () => {
+      if (!handsFreeModeRef.current || !conversationModeRef.current) return;
+      if (handsFreeStatusRef.current === 'processing') {
+        animationFrameRef.current = requestAnimationFrame(checkLevel);
+        return;
+      }
+      
+      analyser.getByteFrequencyData(dataArray);
+      
+      // Calculate average volume
+      let sum = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / dataArray.length;
+      const normalizedLevel = Math.min(100, average * 1.5);
+      setAudioLevel(normalizedLevel);
+      
+      const SPEECH_THRESHOLD = 15; // Adjust this value based on testing
+      const SILENCE_DURATION = 2000; // 2 seconds of silence to trigger translation
+      
+      if (average > SPEECH_THRESHOLD) {
+        // Speech detected
+        if (!isSpeakingRef.current) {
+          console.log("Speech started, level:", average);
+          isSpeakingRef.current = true;
+          setHandsFreeStatus('recording');
+          handsFreeStatusRef.current = 'recording';
+        }
+        silenceStartRef.current = null; // Reset silence timer
+      } else {
+        // Silence detected
+        if (isSpeakingRef.current) {
+          // Was speaking, now silent
+          if (!silenceStartRef.current) {
+            silenceStartRef.current = Date.now();
+            console.log("Silence started");
+          } else {
+            const silenceDuration = Date.now() - silenceStartRef.current;
+            if (silenceDuration >= SILENCE_DURATION) {
+              console.log("Silence threshold reached, processing...");
+              isSpeakingRef.current = false;
+              silenceStartRef.current = null;
+              setHandsFreeStatus('processing');
+              handsFreeStatusRef.current = 'processing';
+              
+              // Stop recorder to trigger processing
+              if (handsFreeRecorderRef.current && handsFreeRecorderRef.current.state === 'recording') {
+                handsFreeRecorderRef.current.stop();
+              }
+              return; // Exit the loop, will restart after processing
+            }
+          }
+        }
+      }
+      
+      animationFrameRef.current = requestAnimationFrame(checkLevel);
+    };
+    
+    checkLevel();
+  };
+
+  // Process the recorded audio
+  const processRecordedAudio = async () => {
+    console.log("Processing recorded audio, chunks:", recordingChunksRef.current.length);
+    
+    if (recordingChunksRef.current.length === 0) {
+      restartListening();
       return;
     }
-
-    setHandsFreeStatus('processing');
-    handsFreeStatusRef.current = 'processing';
     
-    // Calculate total size
-    let totalSize = 0;
-    handsFreeChunksRef.current.forEach((chunk, i) => {
-      console.log(`Chunk ${i}: size=${chunk.size}`);
-      totalSize += chunk.size;
-    });
-    console.log("Total chunks size:", totalSize);
+    const audioBlob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
+    console.log("Audio blob size:", audioBlob.size);
     
-    const fullAudioBlob = new Blob(handsFreeChunksRef.current, { type: 'audio/webm' });
-    console.log("Full audio blob size:", fullAudioBlob.size);
+    // Skip if too small (likely just noise)
+    if (audioBlob.size < 5000) {
+      console.log("Audio too small, skipping");
+      restartListening();
+      return;
+    }
     
-    const processFormData = new FormData();
-    processFormData.append('audio', fullAudioBlob, 'handsfree-full.webm');
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'conversation.webm');
     
     try {
       toast.info("Translating...");
-      const translateResponse = await axios.post(`${API}/handsfree-translate`, processFormData, {
+      const response = await axios.post(`${API}/conversation`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      console.log("Translate response:", translateResponse.data);
+      console.log("Translation response:", response.data);
       
-      if (!translateResponse.data.skipped && translateResponse.data.original_text) {
+      if (!response.data.skipped && response.data.original_text) {
         const entry = {
           id: Date.now(),
-          detected: translateResponse.data.detected_language === 'es' ? 'Spanish' : 'English',
-          original: translateResponse.data.original_text,
-          translated: translateResponse.data.translated_text,
-          targetLang: translateResponse.data.target_language === 'es' ? 'Spanish' : 'English'
+          detected: response.data.detected_language === 'es' ? 'Spanish' : 'English',
+          original: response.data.original_text,
+          translated: response.data.translated_text,
+          targetLang: response.data.target_language === 'es' ? 'Spanish' : 'English'
         };
         setConversationHistory(prev => [...prev, entry]);
-        console.log("Added to history:", entry);
         
-        if (translateResponse.data.audio) {
-          const audioData = translateResponse.data.audio;
+        // Play the translation
+        if (response.data.audio) {
+          const audioData = response.data.audio;
           const audioBlobPlay = new Blob(
             [Uint8Array.from(atob(audioData), c => c.charCodeAt(0))],
             { type: 'audio/mp3' }
@@ -439,34 +442,63 @@ function App() {
           const audio = new Audio(audioUrl);
           audio.onended = () => {
             URL.revokeObjectURL(audioUrl);
-            resetHandsFree();
+            restartListening();
           };
           audio.onerror = () => {
-            resetHandsFree();
+            restartListening();
           };
           await audio.play();
           return;
         }
       } else {
-        console.log("Translation skipped or empty");
-        toast.info("Couldn't understand. Try again.");
+        console.log("No translation (skipped or empty)");
       }
       
-      resetHandsFree();
+      restartListening();
       
     } catch (err) {
-      console.error("Handsfree translate error:", err);
+      console.error("Translation error:", err);
       toast.error("Translation failed");
-      resetHandsFree();
+      restartListening();
     }
   };
 
-  const resetHandsFree = () => {
-    setHandsFreeStatus('waiting');
-    handsFreeStatusRef.current = 'waiting';
-    handsFreeChunksRef.current = [];
-    toast.success("Ready! Say 'Translator listen' to continue.");
-    setTimeout(() => startHandsFreeListening(), 500);
+  // Restart listening after processing
+  const restartListening = () => {
+    if (!handsFreeModeRef.current || !conversationModeRef.current) return;
+    
+    recordingChunksRef.current = [];
+    setHandsFreeStatus('listening');
+    handsFreeStatusRef.current = 'listening';
+    
+    // Restart the media recorder
+    if (conversationStreamRef.current) {
+      try {
+        const mediaRecorder = new MediaRecorder(conversationStreamRef.current, { mimeType: 'audio/webm' });
+        handsFreeRecorderRef.current = mediaRecorder;
+        
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            recordingChunksRef.current.push(event.data);
+          }
+        };
+        
+        mediaRecorder.onstop = async () => {
+          if (recordingChunksRef.current.length > 0 && handsFreeStatusRef.current === 'processing') {
+            await processRecordedAudio();
+          }
+        };
+        
+        mediaRecorder.start(100);
+        
+        // Restart audio monitoring
+        monitorAudioLevel();
+        
+        toast.success("Ready! Speak when ready.");
+      } catch (err) {
+        console.error("Failed to restart recorder:", err);
+      }
+    }
   };
 
   const startListening = (stream) => {
@@ -678,23 +710,30 @@ function App() {
                   </p>
                 </>
               ) : (
-                /* Hands-Free Mode */
+                /* Hands-Free Mode - Silence Detection */
                 <>
                   <div className={`handsfree-indicator ${handsFreeStatus}`}>
                     <Microphone size={40} weight={handsFreeStatus === 'recording' ? "fill" : "bold"} />
+                    {/* Audio level indicator ring */}
+                    <div className="audio-level-ring" style={{ 
+                      transform: `scale(${1 + (audioLevel / 100) * 0.5})`,
+                      opacity: audioLevel > 10 ? 0.6 : 0.2
+                    }} />
                   </div>
-                  <p className={`text-sm font-mono uppercase tracking-wider mt-4 ${handsFreeStatus === 'recording' ? 'text-red-600 font-bold animate-pulse' : ''}`}>
-                    {handsFreeStatus === 'waiting' && 'Say "Translator listen" to start'}
-                    {handsFreeStatus === 'recording' && '● RECORDING - Say "Stop" when done'}
+                  <p className={`text-sm font-mono uppercase tracking-wider mt-4 ${handsFreeStatus === 'recording' ? 'text-red-600 font-bold' : ''}`}>
+                    {handsFreeStatus === 'listening' && 'Listening... Speak when ready'}
+                    {handsFreeStatus === 'recording' && '● RECORDING - Pause to translate'}
                     {handsFreeStatus === 'processing' && 'Translating...'}
                   </p>
-                  <div className="trigger-hints">
-                    <p className="text-xs font-mono text-gray-500 mt-2">
-                      <strong>Start:</strong> "Translator listen" / "Traductor escucha"
-                    </p>
-                    <p className="text-xs font-mono text-gray-500">
-                      <strong>Stop:</strong> "Stop" / "Done" / "Para"
-                    </p>
+                  <p className="text-xs font-mono text-gray-500 mt-2">
+                    Speak naturally. Pause 2 seconds when done.
+                  </p>
+                  {/* Audio level bar */}
+                  <div className="audio-level-bar-container">
+                    <div 
+                      className="audio-level-bar" 
+                      style={{ width: `${Math.min(100, audioLevel)}%` }}
+                    />
                   </div>
                 </>
               )}

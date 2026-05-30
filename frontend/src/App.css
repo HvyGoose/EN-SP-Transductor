@@ -362,6 +362,60 @@
   background: var(--surface);
 }
 
+/* Audio level visualization */
+.audio-level-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 3px solid var(--primary);
+  border-radius: 0;
+  transition: transform 0.1s ease-out, opacity 0.1s ease-out;
+  pointer-events: none;
+}
+
+.handsfree-indicator {
+  position: relative;
+}
+
+.handsfree-indicator.recording .audio-level-ring {
+  border-color: var(--danger);
+}
+
+.audio-level-bar-container {
+  width: 200px;
+  height: 8px;
+  background: var(--surface);
+  border: 1px solid var(--text);
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.audio-level-bar {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.05s ease-out;
+}
+
+.handsfree-indicator.recording + p + p + .audio-level-bar-container .audio-level-bar,
+.recording .audio-level-bar {
+  background: var(--danger);
+}
+
+/* Listening state - subtle pulse */
+.handsfree-indicator.listening {
+  border-color: var(--primary);
+  animation: listening-pulse 2s ease-in-out infinite;
+}
+
+@keyframes listening-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(0, 47, 167, 0.2);
+  }
+  50% { 
+    box-shadow: 0 0 0 10px rgba(0, 47, 167, 0);
+  }
+}
+
 @keyframes listening-pulse {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4);
