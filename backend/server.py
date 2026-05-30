@@ -188,20 +188,7 @@ async def handsfree_check(audio: UploadFile = File(...)):
         )
         
         text = response.text.strip().lower()
-        
-        # Check for start triggers
-        start_triggers = [
-            "translator listen", "translate listen", "translator lissen",
-            "traductor escucha", "traductor escuchar", "translator escucha",
-            "start listening", "empieza a escuchar", "escucha"
-        ]
-        
-        # Check for stop triggers  
-        stop_triggers = [
-            "translator stop", "translate stop", "translator stap",
-            "traductor para", "traductor alto", "traductor parar",
-            "stop listening", "para de escuchar", "alto", "para"
-        ]
+        logger.info(f"Handsfree transcription: '{text}'")
         
         # Check for hallucinations first
         hallucination_patterns = [
@@ -213,15 +200,48 @@ async def handsfree_check(audio: UploadFile = File(...)):
         if is_hallucination:
             return {"trigger": None, "text": ""}
         
+        # Check for start triggers (be flexible with word variations)
+        start_triggers = [
+            "translator listen", "translate listen", "translator lissen",
+            "translator listing", "translate listing", "translator listening",
+            "traductor escucha", "traductor escuchar", "translator escucha",
+            "start listening", "empieza a escuchar", "escucha traductor",
+            "hey translator", "okay translator", "translator start"
+        ]
+        
+        # Check for stop triggers (be very flexible)
+        stop_triggers = [
+            "translator stop", "translate stop", "translator stap", "translator stopped",
+            "traductor para", "traductor alto", "traductor parar", "traductor stop",
+            "stop listening", "para de escuchar", "stop translator", "translator done",
+            "translate done", "traductor listo", "that's it", "eso es todo",
+            "finish", "finished", "done", "stop", "para", "alto", "end", "terminate",
+            "translator end", "translate end", "traductor termina"
+        ]
+        
+        # Check stop triggers first (higher priority when recording)
+        for trigger in stop_triggers:
+            if trigger in text or text.endswith(trigger) or text.startswith(trigger):
+                logger.info(f"STOP trigger detected in: '{text}'")
+                return {"trigger": "stop", "text": text}
+        
+        # Then check start triggers
         for trigger in start_triggers:
-            if trigger in text:
-                logger.info(f"Start trigger detected: '{text}'")
+            if trigger in text or text.endswith(trigger) or text.startswith(trigger):
+                logger.info(f"START trigger detected in: '{text}'")
                 return {"trigger": "start", "text": text}
         
-        for trigger in stop_triggers:
-            if trigger in text:
-                logger.info(f"Stop trigger detected: '{text}'")
+        # Also check for partial matches (in case of speech recognition errors)
+        text_words = text.split()
+        if any(word in ["stop", "para", "alto", "done", "finish", "end"] for word in text_words):
+            if any(word in ["translator", "translate", "traductor"] for word in text_words):
+                logger.info(f"STOP trigger (partial match) in: '{text}'")
                 return {"trigger": "stop", "text": text}
+        
+        if any(word in ["listen", "listening", "escucha", "start"] for word in text_words):
+            if any(word in ["translator", "translate", "traductor"] for word in text_words):
+                logger.info(f"START trigger (partial match) in: '{text}'")
+                return {"trigger": "start", "text": text}
         
         return {"trigger": None, "text": text}
         
