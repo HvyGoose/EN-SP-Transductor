@@ -167,7 +167,7 @@ async def handsfree_check(audio: UploadFile = File(...)):
     """
     Check audio for trigger phrases:
     - "translator listen" / "traductor escucha" -> start recording
-    - "translator stop" / "traductor para" / "traductor alto" -> stop and process
+    - "translator stop" / "traductor para" -> stop and process
     """
     try:
         audio_content = await audio.read()
@@ -187,63 +187,80 @@ async def handsfree_check(audio: UploadFile = File(...)):
             response_format="json"
         )
         
-        text = response.text.strip().lower()
-        logger.info(f"Handsfree transcription: '{text}'")
+        raw_text = response.text.strip()
+        # Remove ALL punctuation for matching
+        import re
+        text = re.sub(r'[^\w\s]', '', raw_text.lower()).strip()
+        text = re.sub(r'\s+', ' ', text)  # Normalize spaces
+        
+        logger.info(f"Handsfree transcription: '{raw_text}' -> cleaned: '{text}'")
         
         # Check for hallucinations first
         hallucination_patterns = [
             "thank you", "thanks for watching", "thank you for watching",
-            "thanks for listening", "thank you for listening", "subscribe"
+            "thanks for listening", "thank you for listening", "subscribe",
+            "transcribed by", "otter", "thank you so much"
         ]
         
         is_hallucination = any(pattern in text for pattern in hallucination_patterns)
         if is_hallucination:
+            logger.info(f"Filtered hallucination: '{text}'")
             return {"trigger": None, "text": ""}
         
-        # Check for start triggers (be flexible with word variations)
+        # Check for start triggers
         start_triggers = [
             "translator listen", "translate listen", "translator lissen",
             "translator listing", "translate listing", "translator listening",
             "traductor escucha", "traductor escuchar", "translator escucha",
             "start listening", "empieza a escuchar", "escucha traductor",
-            "hey translator", "okay translator", "translator start"
+            "hey translator", "okay translator", "translator start",
+            "translator", "translate"  # Even just "translator" alone
         ]
         
-        # Check for stop triggers (be very flexible)
+        # Check for stop triggers
         stop_triggers = [
             "translator stop", "translate stop", "translator stap", "translator stopped",
             "traductor para", "traductor alto", "traductor parar", "traductor stop",
             "stop listening", "para de escuchar", "stop translator", "translator done",
-            "translate done", "traductor listo", "that's it", "eso es todo",
-            "finish", "finished", "done", "stop", "para", "alto", "end", "terminate",
-            "translator end", "translate end", "traductor termina"
+            "translate done", "traductor listo", "thats it", "eso es todo",
+            "finish", "finished", "done", "stop", "para", "alto", "end",
+            "translator end", "translate end", "traductor termina", "bon appetit"
         ]
         
         # Check stop triggers first (higher priority when recording)
         for trigger in stop_triggers:
-            if trigger in text or text.endswith(trigger) or text.startswith(trigger):
-                logger.info(f"STOP trigger detected in: '{text}'")
-                return {"trigger": "stop", "text": text}
+            clean_trigger = re.sub(r'[^\w\s]', '', trigger).strip()
+            if clean_trigger in text or text == clean_trigger:
+                logger.info(f"STOP trigger detected: '{clean_trigger}' in '{text}'")
+                return {"trigger": "stop", "text": raw_text}
         
         # Then check start triggers
         for trigger in start_triggers:
-            if trigger in text or text.endswith(trigger) or text.startswith(trigger):
-                logger.info(f"START trigger detected in: '{text}'")
-                return {"trigger": "start", "text": text}
+            clean_trigger = re.sub(r'[^\w\s]', '', trigger).strip()
+            if clean_trigger in text or text == clean_trigger:
+                logger.info(f"START trigger detected: '{clean_trigger}' in '{text}'")
+                return {"trigger": "start", "text": raw_text}
         
-        # Also check for partial matches (in case of speech recognition errors)
+        # Partial word matching as fallback
         text_words = text.split()
-        if any(word in ["stop", "para", "alto", "done", "finish", "end"] for word in text_words):
-            if any(word in ["translator", "translate", "traductor"] for word in text_words):
-                logger.info(f"STOP trigger (partial match) in: '{text}'")
-                return {"trigger": "stop", "text": text}
         
-        if any(word in ["listen", "listening", "escucha", "start"] for word in text_words):
-            if any(word in ["translator", "translate", "traductor"] for word in text_words):
-                logger.info(f"START trigger (partial match) in: '{text}'")
-                return {"trigger": "start", "text": text}
+        # Stop detection
+        if any(word in ["stop", "para", "alto", "done", "finish", "end", "finished"] for word in text_words):
+            logger.info(f"STOP trigger (word match) in: '{text}'")
+            return {"trigger": "stop", "text": raw_text}
         
-        return {"trigger": None, "text": text}
+        # Start detection - if they say "translator" or "listen" alone, treat as start
+        if any(word in ["translator", "translate", "traductor"] for word in text_words):
+            if any(word in ["listen", "listening", "escucha", "start", "lissen"] for word in text_words):
+                logger.info(f"START trigger (word match) in: '{text}'")
+                return {"trigger": "start", "text": raw_text}
+        
+        # Super lenient: just "listen" or "escucha" alone = start
+        if text in ["listen", "listening", "escucha", "escuchar"]:
+            logger.info(f"START trigger (single word) in: '{text}'")
+            return {"trigger": "start", "text": raw_text}
+        
+        return {"trigger": None, "text": raw_text}
         
     except Exception as e:
         logger.error(f"Handsfree check error: {e}")
