@@ -185,8 +185,7 @@ function App() {
       setConversationMode(true);
       setConversationHistory([]);
       isProcessingRef.current = false;
-      toast.success("Conversation mode started! Speak in English or Spanish.");
-      startListening(stream);
+      toast.success("Hold the mic button to speak, release to translate!");
     } catch (err) {
       console.error("Microphone access error:", err);
       toast.error("Microphone access denied");
@@ -235,10 +234,7 @@ function App() {
       if (!conversationModeRef.current) return;
       
       if (chunks.length === 0) {
-        // Restart listening if still in conversation mode
-        if (conversationModeRef.current && conversationStreamRef.current) {
-          setTimeout(() => startListening(conversationStreamRef.current), 300);
-        }
+        setIsListening(false);
         return;
       }
 
@@ -279,49 +275,39 @@ function App() {
             audio.onended = () => {
               URL.revokeObjectURL(audioUrl);
               isProcessingRef.current = false;
-              // Continue listening - use ref
-              if (conversationModeRef.current && conversationStreamRef.current) {
-                startListening(conversationStreamRef.current);
-              }
             };
             audio.onerror = () => {
               isProcessingRef.current = false;
-              if (conversationModeRef.current && conversationStreamRef.current) {
-                startListening(conversationStreamRef.current);
-              }
             };
             await audio.play();
           } else {
             isProcessingRef.current = false;
-            if (conversationModeRef.current && conversationStreamRef.current) {
-              startListening(conversationStreamRef.current);
-            }
           }
         } else {
           isProcessingRef.current = false;
-          // Continue listening - use ref
-          if (conversationModeRef.current && conversationStreamRef.current) {
-            startListening(conversationStreamRef.current);
-          }
         }
       } catch (err) {
         console.error("Conversation error:", err);
+        toast.error("Translation failed");
         isProcessingRef.current = false;
-        if (conversationModeRef.current && conversationStreamRef.current) {
-          setTimeout(() => startListening(conversationStreamRef.current), 1000);
-        }
       }
     };
 
     mediaRecorder.start();
     setIsListening(true);
+  };
 
-    // Record for 4 seconds then process
-    silenceTimeoutRef.current = setTimeout(() => {
-      if (mediaRecorder.state === 'recording') {
-        mediaRecorder.stop();
-      }
-    }, 4000);
+  // Hold to talk - start recording
+  const handleConversationMouseDown = () => {
+    if (!conversationModeRef.current || !conversationStreamRef.current || isProcessingRef.current) return;
+    startListening(conversationStreamRef.current);
+  };
+
+  // Release to process
+  const handleConversationMouseUp = () => {
+    if (conversationRecorderRef.current && conversationRecorderRef.current.state === 'recording') {
+      conversationRecorderRef.current.stop();
+    }
   };
 
   // Cleanup on unmount
@@ -415,11 +401,20 @@ function App() {
             </div>
             
             <div className="conversation-status">
-              <div className={`status-indicator ${isListening ? 'listening' : isProcessingRef.current ? 'processing' : 'ready'}`}>
-                <Microphone size={32} weight={isListening ? "fill" : "bold"} />
-              </div>
-              <p className="text-sm font-mono uppercase tracking-wider mt-2">
-                {isListening ? 'Listening...' : 'Processing...'}
+              <button
+                data-testid="hold-to-talk-btn"
+                className={`hold-to-talk-btn ${isListening ? 'recording' : ''} ${isProcessingRef.current ? 'processing' : ''}`}
+                onMouseDown={handleConversationMouseDown}
+                onMouseUp={handleConversationMouseUp}
+                onMouseLeave={handleConversationMouseUp}
+                onTouchStart={handleConversationMouseDown}
+                onTouchEnd={handleConversationMouseUp}
+                disabled={isProcessingRef.current}
+              >
+                <Microphone size={40} weight={isListening ? "fill" : "bold"} />
+              </button>
+              <p className="text-sm font-mono uppercase tracking-wider mt-4">
+                {isListening ? 'Listening... Release to translate' : isProcessingRef.current ? 'Processing...' : 'Hold to Talk'}
               </p>
               <p className="text-xs font-mono text-gray-500 mt-1">
                 Speak in English or Spanish

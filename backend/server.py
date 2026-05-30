@@ -199,7 +199,30 @@ async def conversation_mode(audio: UploadFile = File(...)):
         )
         
         original_text = response.text.strip()
-        if not original_text:
+        
+        # Filter out Whisper hallucinations (common patterns when given silence)
+        hallucination_patterns = [
+            "thank you", "thanks for watching", "thank you for watching",
+            "thanks for listening", "thank you for listening",
+            "subscribe", "like and subscribe", "see you next time",
+            "goodbye", "bye", "bye bye",
+            "silence", "music", "applause",
+            "...", ". .", "..", "。", "،",
+        ]
+        
+        # Check if it's likely a hallucination
+        lower_text = original_text.lower().strip()
+        is_hallucination = (
+            not original_text or
+            len(original_text) < 3 or
+            original_text in [".", "..", "...", ". .", ". . ."] or
+            any(lower_text == pattern or lower_text.startswith(pattern + ".") or lower_text.startswith(pattern + " ") 
+                for pattern in hallucination_patterns) or
+            all(c in '.,!?¿¡ \n\t' for c in original_text)  # Only punctuation
+        )
+        
+        if is_hallucination:
+            logger.info(f"Filtered hallucination: '{original_text}'")
             return {
                 "detected_language": None,
                 "original_text": "",
