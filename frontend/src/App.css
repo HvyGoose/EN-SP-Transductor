@@ -390,6 +390,54 @@
   overflow: hidden;
 }
 
+/* Silence duration setting */
+.silence-setting {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 200px;
+}
+
+.silence-slider {
+  width: 100%;
+  height: 8px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--text);
+  cursor: pointer;
+}
+
+.silence-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--text);
+  cursor: pointer;
+  border: none;
+}
+
+.silence-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--text);
+  cursor: pointer;
+  border: none;
+  border-radius: 0;
+}
+
+.silence-labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.65rem;
+  font-family: 'IBM Plex Mono', monospace;
+  color: #999;
+}
+
 .audio-level-bar {
   height: 100%;
   background: var(--primary);

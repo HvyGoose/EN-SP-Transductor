@@ -36,6 +36,8 @@ function App() {
   const [handsFreeMode, setHandsFreeMode] = useState(false);
   const [handsFreeStatus, setHandsFreeStatus] = useState('waiting'); // 'waiting', 'listening', 'recording', 'processing'
   const [audioLevel, setAudioLevel] = useState(0);
+  const [silenceDuration, setSilenceDuration] = useState(2); // Default 2 seconds
+  const silenceDurationRef = useRef(2);
   const conversationRecorderRef = useRef(null);
   const conversationStreamRef = useRef(null);
   const silenceTimeoutRef = useRef(null);
@@ -348,7 +350,7 @@ function App() {
       setAudioLevel(normalizedLevel);
       
       const SPEECH_THRESHOLD = 15; // Adjust this value based on testing
-      const SILENCE_DURATION = 2000; // 2 seconds of silence to trigger translation
+      const SILENCE_DURATION = silenceDurationRef.current * 1000; // Use user setting
       
       if (average > SPEECH_THRESHOLD) {
         // Speech detected
@@ -722,12 +724,36 @@ function App() {
                   </div>
                   <p className={`text-sm font-mono uppercase tracking-wider mt-4 ${handsFreeStatus === 'recording' ? 'text-red-600 font-bold' : ''}`}>
                     {handsFreeStatus === 'listening' && 'Listening... Speak when ready'}
-                    {handsFreeStatus === 'recording' && '● RECORDING - Pause to translate'}
+                    {handsFreeStatus === 'recording' && `● RECORDING - Pause ${silenceDuration}s to translate`}
                     {handsFreeStatus === 'processing' && 'Translating...'}
                   </p>
-                  <p className="text-xs font-mono text-gray-500 mt-2">
-                    Speak naturally. Pause 2 seconds when done.
-                  </p>
+                  
+                  {/* Silence duration setting */}
+                  <div className="silence-setting">
+                    <label className="text-xs font-mono uppercase tracking-wider text-gray-600">
+                      Pause Duration: {silenceDuration}s
+                    </label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="5"
+                      step="0.5"
+                      value={silenceDuration}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setSilenceDuration(val);
+                        silenceDurationRef.current = val;
+                      }}
+                      className="silence-slider"
+                      data-testid="silence-duration-slider"
+                    />
+                    <div className="silence-labels">
+                      <span>1s</span>
+                      <span>3s</span>
+                      <span>5s</span>
+                    </div>
+                  </div>
+                  
                   {/* Audio level bar */}
                   <div className="audio-level-bar-container">
                     <div 
@@ -746,7 +772,7 @@ function App() {
               {conversationHistory.length === 0 ? (
                 <p className="text-center text-gray-400 font-mono text-sm py-8">
                   {handsFreeMode 
-                    ? 'Say "Translator listen" to begin' 
+                    ? 'Speak naturally, pause when done' 
                     : 'Hold the button and speak to see translations'}
                 </p>
               ) : (
