@@ -314,6 +314,53 @@
   cursor: wait;
 }
 
+/* Hands-free indicator */
+.handsfree-indicator {
+  width: 100px;
+  height: 100px;
+  border: 3px solid var(--text);
+  background: var(--background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms linear;
+}
+
+.handsfree-indicator.waiting {
+  border-color: var(--text);
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+.handsfree-indicator.recording {
+  background: var(--danger);
+  color: white;
+  border-color: var(--danger);
+  animation: recording-glow 1.5s ease-in-out infinite;
+}
+
+.handsfree-indicator.processing {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: var(--text); }
+  50% { border-color: #999; }
+}
+
+@keyframes recording-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4); }
+  50% { box-shadow: 0 0 0 15px rgba(255, 59, 48, 0); }
+}
+
+.trigger-hints {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  background: var(--surface);
+}
+
 @keyframes listening-pulse {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4);

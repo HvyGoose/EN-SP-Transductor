@@ -32,11 +32,17 @@ function App() {
   const [conversationMode, setConversationMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [conversationHistory, setConversationHistory] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [handsFreeMode, setHandsFreeMode] = useState(false);
+  const [isHandsFreeListening, setIsHandsFreeListening] = useState(false);
+  const [handsFreeStatus, setHandsFreeStatus] = useState('waiting'); // 'waiting', 'recording', 'processing'
   const conversationRecorderRef = useRef(null);
   const conversationStreamRef = useRef(null);
   const silenceTimeoutRef = useRef(null);
-  const isProcessingRef = useRef(false);
-  const conversationModeRef = useRef(false); // Ref to track mode in callbacks
+  const conversationModeRef = useRef(false);
+  const handsFreeModeRef = useRef(false);
+  const handsFreeChunksRef = useRef([]);
+  const handsFreeRecorderRef = useRef(null);
   
   // Refs
   const debounceRef = useRef(null);
@@ -181,11 +187,13 @@ function App() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       conversationStreamRef.current = stream;
-      conversationModeRef.current = true; // Set ref
+      conversationModeRef.current = true;
       setConversationMode(true);
       setConversationHistory([]);
-      isProcessingRef.current = false;
-      toast.success("Hold the mic button to speak, release to translate!");
+      setIsProcessing(false);
+      setHandsFreeMode(false);
+      handsFreeModeRef.current = false;
+      toast.success("Press & Hold mode ready! Hold the mic to speak.");
     } catch (err) {
       console.error("Microphone access error:", err);
       toast.error("Microphone access denied");
@@ -193,12 +201,18 @@ function App() {
   };
 
   const stopConversationMode = () => {
-    conversationModeRef.current = false; // Clear ref
+    conversationModeRef.current = false;
+    handsFreeModeRef.current = false;
     setConversationMode(false);
     setIsListening(false);
-    isProcessingRef.current = false;
+    setIsProcessing(false);
+    setHandsFreeMode(false);
+    setHandsFreeStatus('waiting');
     if (conversationRecorderRef.current && conversationRecorderRef.current.state === 'recording') {
       conversationRecorderRef.current.stop();
+    }
+    if (handsFreeRecorderRef.current && handsFreeRecorderRef.current.state === 'recording') {
+      handsFreeRecorderRef.current.stop();
     }
     if (conversationStreamRef.current) {
       conversationStreamRef.current.getTracks().forEach(track => track.stop());
@@ -210,14 +224,175 @@ function App() {
     toast.info("Conversation mode ended");
   };
 
-  const startListening = (stream) => {
-    // Use ref to check if still in conversation mode
-    if (!stream || !conversationModeRef.current) return;
-    if (isProcessingRef.current) {
-      // If processing, wait and retry
-      setTimeout(() => startListening(stream), 500);
-      return;
+  // Toggle between Press & Hold and Hands-free modes
+  const toggleHandsFreeMode = () => {
+    if (!handsFreeMode) {
+      // Switch to hands-free
+      setHandsFreeMode(true);
+      handsFreeModeRef.current = true;
+      setHandsFreeStatus('waiting');
+      handsFreeChunksRef.current = [];
+      toast.success("Hands-free mode! Say 'Translator listen' to start, 'Translator stop' to translate.");
+      startHandsFreeListening();
+    } else {
+      // Switch back to press & hold
+      setHandsFreeMode(false);
+      handsFreeModeRef.current = false;
+      setHandsFreeStatus('waiting');
+      if (handsFreeRecorderRef.current && handsFreeRecorderRef.current.state === 'recording') {
+        handsFreeRecorderRef.current.stop();
+      }
+      toast.success("Press & Hold mode ready!");
     }
+  };
+
+  // Hands-free continuous listening
+  const startHandsFreeListening = () => {
+    if (!conversationStreamRef.current || !handsFreeModeRef.current) return;
+    
+    const mediaRecorder = new MediaRecorder(conversationStreamRef.current, { mimeType: 'audio/webm' });
+    handsFreeRecorderRef.current = mediaRecorder;
+    const chunks = [];
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        chunks.push(event.data);
+        // Also accumulate if we're in recording mode
+        if (handsFreeStatus === 'recording') {
+          handsFreeChunksRef.current.push(event.data);
+        }
+      }
+    };
+
+    mediaRecorder.onstop = async () => {
+      if (!handsFreeModeRef.current || !conversationModeRef.current) return;
+      
+      if (chunks.length === 0) {
+        setTimeout(() => startHandsFreeListening(), 100);
+        return;
+      }
+
+      const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+      
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'handsfree.webm');
+
+      try {
+        const response = await axios.post(`${API}/handsfree-check`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        
+        const { trigger } = response.data;
+        
+        if (trigger === 'start') {
+          setHandsFreeStatus('recording');
+          handsFreeChunksRef.current = [...chunks]; // Start with current audio
+          toast.info("Listening... Say 'Translator stop' when done.");
+        } else if (trigger === 'stop' && handsFreeStatus === 'recording') {
+          // Add final chunks
+          handsFreeChunksRef.current.push(...chunks);
+          setHandsFreeStatus('processing');
+          
+          // Process all accumulated audio
+          const fullAudioBlob = new Blob(handsFreeChunksRef.current, { type: 'audio/webm' });
+          const processFormData = new FormData();
+          processFormData.append('audio', fullAudioBlob, 'handsfree-full.webm');
+          
+          try {
+            const translateResponse = await axios.post(`${API}/handsfree-translate`, processFormData, {
+              headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            
+            if (!translateResponse.data.skipped && translateResponse.data.original_text) {
+              const entry = {
+                id: Date.now(),
+                detected: translateResponse.data.detected_language === 'es' ? 'Spanish' : 'English',
+                original: translateResponse.data.original_text,
+                translated: translateResponse.data.translated_text,
+                targetLang: translateResponse.data.target_language === 'es' ? 'Spanish' : 'English'
+              };
+              setConversationHistory(prev => [...prev, entry]);
+              
+              // Play audio
+              if (translateResponse.data.audio) {
+                const audioData = translateResponse.data.audio;
+                const audioBlobPlay = new Blob(
+                  [Uint8Array.from(atob(audioData), c => c.charCodeAt(0))],
+                  { type: 'audio/mp3' }
+                );
+                const audioUrl = URL.createObjectURL(audioBlobPlay);
+                const audio = new Audio(audioUrl);
+                audio.onended = () => {
+                  URL.revokeObjectURL(audioUrl);
+                  setHandsFreeStatus('waiting');
+                  handsFreeChunksRef.current = [];
+                  toast.success("Ready! Say 'Translator listen' to continue.");
+                };
+                audio.onerror = () => {
+                  setHandsFreeStatus('waiting');
+                  handsFreeChunksRef.current = [];
+                };
+                await audio.play();
+              } else {
+                setHandsFreeStatus('waiting');
+                handsFreeChunksRef.current = [];
+              }
+            } else {
+              setHandsFreeStatus('waiting');
+              handsFreeChunksRef.current = [];
+              toast.info("No speech detected. Say 'Translator listen' to try again.");
+            }
+          } catch (err) {
+            console.error("Handsfree translate error:", err);
+            setHandsFreeStatus('waiting');
+            handsFreeChunksRef.current = [];
+            toast.error("Translation failed");
+          }
+        }
+        
+        // Continue listening if not processing
+        if (handsFreeModeRef.current && conversationModeRef.current && handsFreeStatus !== 'processing') {
+          setTimeout(() => startHandsFreeListening(), 100);
+        } else if (handsFreeStatus === 'processing') {
+          // Will restart after processing completes
+        } else {
+          setTimeout(() => startHandsFreeListening(), 100);
+        }
+      } catch (err) {
+        console.error("Hands-free check error:", err);
+        if (handsFreeModeRef.current && conversationModeRef.current) {
+          setTimeout(() => startHandsFreeListening(), 500);
+        }
+      }
+    };
+
+    mediaRecorder.start();
+    setIsHandsFreeListening(true);
+
+    // Record 3-second chunks for checking triggers
+    setTimeout(() => {
+      if (mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+        setIsHandsFreeListening(false);
+      }
+    }, 3000);
+  };
+
+  // Restart hands-free listening after processing
+  useEffect(() => {
+    if (handsFreeMode && handsFreeStatus === 'waiting' && conversationModeRef.current) {
+      const timer = setTimeout(() => {
+        if (handsFreeModeRef.current && !isHandsFreeListening) {
+          startHandsFreeListening();
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [handsFreeStatus, handsFreeMode]);
+
+  const startListening = (stream) => {
+    if (!stream || !conversationModeRef.current) return;
+    if (isProcessing) return;
     
     const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
     conversationRecorderRef.current = mediaRecorder;
@@ -230,7 +405,6 @@ function App() {
     };
 
     mediaRecorder.onstop = async () => {
-      // Check ref instead of state
       if (!conversationModeRef.current) return;
       
       if (chunks.length === 0) {
@@ -238,12 +412,11 @@ function App() {
         return;
       }
 
-      isProcessingRef.current = true;
+      setIsProcessing(true);
       setIsListening(false);
       
       const audioBlob = new Blob(chunks, { type: 'audio/webm' });
       
-      // Send to conversation endpoint
       const formData = new FormData();
       formData.append('audio', audioBlob, 'conversation.webm');
 
@@ -253,7 +426,6 @@ function App() {
         });
         
         if (!response.data.skipped && response.data.original_text) {
-          // Add to conversation history
           const entry = {
             id: Date.now(),
             detected: response.data.detected_language === 'es' ? 'Spanish' : 'English',
@@ -263,7 +435,6 @@ function App() {
           };
           setConversationHistory(prev => [...prev, entry]);
           
-          // Play the translated audio
           if (response.data.audio) {
             const audioData = response.data.audio;
             const audioBlobPlay = new Blob(
@@ -274,22 +445,22 @@ function App() {
             const audio = new Audio(audioUrl);
             audio.onended = () => {
               URL.revokeObjectURL(audioUrl);
-              isProcessingRef.current = false;
+              setIsProcessing(false);
             };
             audio.onerror = () => {
-              isProcessingRef.current = false;
+              setIsProcessing(false);
             };
             await audio.play();
           } else {
-            isProcessingRef.current = false;
+            setIsProcessing(false);
           }
         } else {
-          isProcessingRef.current = false;
+          setIsProcessing(false);
         }
       } catch (err) {
         console.error("Conversation error:", err);
         toast.error("Translation failed");
-        isProcessingRef.current = false;
+        setIsProcessing(false);
       }
     };
 
@@ -297,13 +468,11 @@ function App() {
     setIsListening(true);
   };
 
-  // Hold to talk - start recording
   const handleConversationMouseDown = () => {
-    if (!conversationModeRef.current || !conversationStreamRef.current || isProcessingRef.current) return;
+    if (!conversationModeRef.current || !conversationStreamRef.current || isProcessing || handsFreeMode) return;
     startListening(conversationStreamRef.current);
   };
 
-  // Release to process
   const handleConversationMouseUp = () => {
     if (conversationRecorderRef.current && conversationRecorderRef.current.state === 'recording') {
       conversationRecorderRef.current.stop();
@@ -391,32 +560,66 @@ function App() {
               <h2 className="font-heading text-xl font-black uppercase tracking-tight">
                 Conversation Mode
               </h2>
-              <button
-                data-testid="close-conversation-btn"
-                className="swiss-btn p-2 border border-black"
-                onClick={stopConversationMode}
-              >
-                <X size={20} weight="bold" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  data-testid="toggle-mode-btn"
+                  className={`swiss-btn px-3 py-1 border border-black text-xs font-mono uppercase ${handsFreeMode ? 'bg-black text-white' : ''}`}
+                  onClick={toggleHandsFreeMode}
+                >
+                  {handsFreeMode ? 'Hands-Free' : 'Press & Hold'}
+                </button>
+                <button
+                  data-testid="close-conversation-btn"
+                  className="swiss-btn p-2 border border-black"
+                  onClick={stopConversationMode}
+                >
+                  <X size={20} weight="bold" />
+                </button>
+              </div>
             </div>
             
             <div className="conversation-status">
-              <button
-                data-testid="hold-to-talk-btn"
-                className={`hold-to-talk-btn ${isListening ? 'recording' : ''} ${isProcessingRef.current ? 'processing' : ''}`}
-                onMouseDown={handleConversationMouseDown}
-                onMouseUp={handleConversationMouseUp}
-                onMouseLeave={handleConversationMouseUp}
-                onTouchStart={handleConversationMouseDown}
-                onTouchEnd={handleConversationMouseUp}
-                disabled={isProcessingRef.current}
-              >
-                <Microphone size={40} weight={isListening ? "fill" : "bold"} />
-              </button>
-              <p className="text-sm font-mono uppercase tracking-wider mt-4">
-                {isListening ? 'Listening... Release to translate' : isProcessingRef.current ? 'Processing...' : 'Hold to Talk'}
-              </p>
-              <p className="text-xs font-mono text-gray-500 mt-1">
+              {!handsFreeMode ? (
+                /* Press & Hold Mode */
+                <>
+                  <button
+                    data-testid="hold-to-talk-btn"
+                    className={`hold-to-talk-btn ${isListening ? 'recording' : ''} ${isProcessing ? 'processing' : ''}`}
+                    onMouseDown={handleConversationMouseDown}
+                    onMouseUp={handleConversationMouseUp}
+                    onMouseLeave={handleConversationMouseUp}
+                    onTouchStart={handleConversationMouseDown}
+                    onTouchEnd={handleConversationMouseUp}
+                    disabled={isProcessing}
+                  >
+                    <Microphone size={40} weight={isListening ? "fill" : "bold"} />
+                  </button>
+                  <p className="text-sm font-mono uppercase tracking-wider mt-4">
+                    {isListening ? 'Listening... Release to translate' : isProcessing ? 'Translating...' : 'Hold to Talk'}
+                  </p>
+                </>
+              ) : (
+                /* Hands-Free Mode */
+                <>
+                  <div className={`handsfree-indicator ${handsFreeStatus}`}>
+                    <Microphone size={40} weight={handsFreeStatus === 'recording' ? "fill" : "bold"} />
+                  </div>
+                  <p className="text-sm font-mono uppercase tracking-wider mt-4">
+                    {handsFreeStatus === 'waiting' && 'Say "Translator listen" to start'}
+                    {handsFreeStatus === 'recording' && 'Listening... Say "Translator stop" when done'}
+                    {handsFreeStatus === 'processing' && 'Translating...'}
+                  </p>
+                  <div className="trigger-hints">
+                    <p className="text-xs font-mono text-gray-500 mt-2">
+                      <strong>Start:</strong> "Translator listen" / "Traductor escucha"
+                    </p>
+                    <p className="text-xs font-mono text-gray-500">
+                      <strong>Stop:</strong> "Translator stop" / "Traductor para"
+                    </p>
+                  </div>
+                </>
+              )}
+              <p className="text-xs font-mono text-gray-400 mt-3">
                 Speak in English or Spanish
               </p>
             </div>
@@ -424,7 +627,9 @@ function App() {
             <div className="conversation-history">
               {conversationHistory.length === 0 ? (
                 <p className="text-center text-gray-400 font-mono text-sm py-8">
-                  Start speaking to see translations here
+                  {handsFreeMode 
+                    ? 'Say "Translator listen" to begin' 
+                    : 'Hold the button and speak to see translations'}
                 </p>
               ) : (
                 conversationHistory.map((entry) => (

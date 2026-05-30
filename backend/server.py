@@ -162,6 +162,180 @@ class ConversationRequest(BaseModel):
     pass
 
 
+@api_router.post("/handsfree-check")
+async def handsfree_check(audio: UploadFile = File(...)):
+    """
+    Check audio for trigger phrases:
+    - "translator listen" / "traductor escucha" -> start recording
+    - "translator stop" / "traductor para" / "traductor alto" -> stop and process
+    """
+    try:
+        audio_content = await audio.read()
+        
+        if len(audio_content) < 500:
+            return {"trigger": None, "text": ""}
+        
+        stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
+        
+        import io
+        audio_file = io.BytesIO(audio_content)
+        audio_file.name = audio.filename or "audio.webm"
+        
+        response = await stt.transcribe(
+            file=audio_file,
+            model="whisper-1",
+            response_format="json"
+        )
+        
+        text = response.text.strip().lower()
+        
+        # Check for start triggers
+        start_triggers = [
+            "translator listen", "translate listen", "translator lissen",
+            "traductor escucha", "traductor escuchar", "translator escucha",
+            "start listening", "empieza a escuchar", "escucha"
+        ]
+        
+        # Check for stop triggers  
+        stop_triggers = [
+            "translator stop", "translate stop", "translator stap",
+            "traductor para", "traductor alto", "traductor parar",
+            "stop listening", "para de escuchar", "alto", "para"
+        ]
+        
+        # Check for hallucinations first
+        hallucination_patterns = [
+            "thank you", "thanks for watching", "thank you for watching",
+            "thanks for listening", "thank you for listening", "subscribe"
+        ]
+        
+        is_hallucination = any(pattern in text for pattern in hallucination_patterns)
+        if is_hallucination:
+            return {"trigger": None, "text": ""}
+        
+        for trigger in start_triggers:
+            if trigger in text:
+                logger.info(f"Start trigger detected: '{text}'")
+                return {"trigger": "start", "text": text}
+        
+        for trigger in stop_triggers:
+            if trigger in text:
+                logger.info(f"Stop trigger detected: '{text}'")
+                return {"trigger": "stop", "text": text}
+        
+        return {"trigger": None, "text": text}
+        
+    except Exception as e:
+        logger.error(f"Handsfree check error: {e}")
+        return {"trigger": None, "text": ""}
+
+
+@api_router.post("/handsfree-translate")
+async def handsfree_translate(audio: UploadFile = File(...)):
+    """
+    Process accumulated hands-free audio - transcribe, translate, and generate TTS.
+    Strips out trigger phrases from the transcription.
+    """
+    try:
+        audio_content = await audio.read()
+        
+        if len(audio_content) < 1000:
+            return {"skipped": True}
+        
+        stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
+        
+        import io
+        audio_file = io.BytesIO(audio_content)
+        audio_file.name = audio.filename or "audio.webm"
+        
+        response = await stt.transcribe(
+            file=audio_file,
+            model="whisper-1",
+            response_format="verbose_json"
+        )
+        
+        original_text = response.text.strip()
+        
+        # Remove trigger phrases from the text
+        trigger_phrases = [
+            "translator listen", "translate listen", "traductor escucha",
+            "translator stop", "translate stop", "traductor para", "traductor alto",
+            "start listening", "stop listening", "escucha", "para", "alto"
+        ]
+        
+        cleaned_text = original_text
+        for phrase in trigger_phrases:
+            cleaned_text = cleaned_text.lower().replace(phrase, "").strip()
+        
+        # Clean up extra punctuation
+        import re
+        cleaned_text = re.sub(r'^[\s.,!?¿¡]+|[\s.,!?¿¡]+$', '', cleaned_text)
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+        
+        if not cleaned_text or len(cleaned_text) < 2:
+            return {"skipped": True}
+        
+        # Restore original case by finding the cleaned portion in original
+        # For simplicity, just capitalize first letter
+        cleaned_text = cleaned_text[0].upper() + cleaned_text[1:] if len(cleaned_text) > 1 else cleaned_text.upper()
+        
+        # Detect language and translate
+        detected_lang = getattr(response, 'language', None)
+        
+        if detected_lang == "spanish" or detected_lang == "es":
+            source_lang = "es"
+            target_lang = "en"
+            source_name = "Spanish"
+            target_name = "English"
+        else:
+            source_lang = "en"
+            target_lang = "es"
+            source_name = "English"
+            target_name = "Spanish"
+        
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"handsfree-{uuid.uuid4()}",
+            system_message=f"You are a professional translator. Translate the following text from {source_name} to {target_name}. Only respond with the translation, nothing else."
+        ).with_model("openai", "gpt-5.2")
+        
+        user_message = UserMessage(text=cleaned_text)
+        translated_text = await chat.send_message(user_message)
+        
+        tts = OpenAITextToSpeech(api_key=EMERGENT_LLM_KEY)
+        audio_bytes = await tts.generate_speech(
+            text=translated_text,
+            model="tts-1",
+            voice="nova",
+            response_format="mp3"
+        )
+        audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+        
+        # Store in history
+        history_entry = TranslationHistory(
+            original_text=cleaned_text,
+            translated_text=translated_text,
+            source_lang=source_lang,
+            target_lang=target_lang
+        )
+        doc = history_entry.model_dump()
+        doc['timestamp'] = doc['timestamp'].isoformat()
+        await db.translation_history.insert_one(doc)
+        
+        return {
+            "detected_language": source_lang,
+            "original_text": cleaned_text,
+            "translated_text": translated_text,
+            "target_language": target_lang,
+            "audio": audio_base64,
+            "skipped": False
+        }
+        
+    except Exception as e:
+        logger.error(f"Handsfree translate error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @api_router.post("/conversation")
 async def conversation_mode(audio: UploadFile = File(...)):
     """
