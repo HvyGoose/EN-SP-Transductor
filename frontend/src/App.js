@@ -381,6 +381,9 @@ function App() {
 
   // Process accumulated audio and translate
   const processAndTranslate = async () => {
+    console.log("=== PROCESS AND TRANSLATE ===");
+    console.log("Chunks count:", handsFreeChunksRef.current.length);
+    
     if (handsFreeChunksRef.current.length === 0) {
       console.log("No audio to process");
       setHandsFreeStatus('waiting');
@@ -393,17 +396,27 @@ function App() {
     setHandsFreeStatus('processing');
     handsFreeStatusRef.current = 'processing';
     
-    console.log("Processing", handsFreeChunksRef.current.length, "chunks");
+    // Calculate total size
+    let totalSize = 0;
+    handsFreeChunksRef.current.forEach((chunk, i) => {
+      console.log(`Chunk ${i}: size=${chunk.size}`);
+      totalSize += chunk.size;
+    });
+    console.log("Total chunks size:", totalSize);
+    
     const fullAudioBlob = new Blob(handsFreeChunksRef.current, { type: 'audio/webm' });
-    console.log("Full audio size:", fullAudioBlob.size);
+    console.log("Full audio blob size:", fullAudioBlob.size);
     
     const processFormData = new FormData();
     processFormData.append('audio', fullAudioBlob, 'handsfree-full.webm');
     
     try {
+      toast.info("Translating...");
       const translateResponse = await axios.post(`${API}/handsfree-translate`, processFormData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      
+      console.log("Translate response:", translateResponse.data);
       
       if (!translateResponse.data.skipped && translateResponse.data.original_text) {
         const entry = {
@@ -414,6 +427,7 @@ function App() {
           targetLang: translateResponse.data.target_language === 'es' ? 'Spanish' : 'English'
         };
         setConversationHistory(prev => [...prev, entry]);
+        console.log("Added to history:", entry);
         
         if (translateResponse.data.audio) {
           const audioData = translateResponse.data.audio;
@@ -434,6 +448,7 @@ function App() {
           return;
         }
       } else {
+        console.log("Translation skipped or empty");
         toast.info("Couldn't understand. Try again.");
       }
       
