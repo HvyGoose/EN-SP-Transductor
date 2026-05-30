@@ -643,9 +643,9 @@ function App() {
                   <div className={`handsfree-indicator ${handsFreeStatus}`}>
                     <Microphone size={40} weight={handsFreeStatus === 'recording' ? "fill" : "bold"} />
                   </div>
-                  <p className="text-sm font-mono uppercase tracking-wider mt-4">
+                  <p className={`text-sm font-mono uppercase tracking-wider mt-4 ${handsFreeStatus === 'recording' ? 'text-red-600 font-bold animate-pulse' : ''}`}>
                     {handsFreeStatus === 'waiting' && 'Say "Translator listen" to start'}
-                    {handsFreeStatus === 'recording' && 'Listening... Say "Translator stop" when done'}
+                    {handsFreeStatus === 'recording' && '● RECORDING - Say "Stop" when done'}
                     {handsFreeStatus === 'processing' && 'Translating...'}
                   </p>
                   <div className="trigger-hints">
@@ -653,7 +653,7 @@ function App() {
                       <strong>Start:</strong> "Translator listen" / "Traductor escucha"
                     </p>
                     <p className="text-xs font-mono text-gray-500">
-                      <strong>Stop:</strong> "Translator stop" / "Traductor para"
+                      <strong>Stop:</strong> "Stop" / "Done" / "Para"
                     </p>
                   </div>
                 </>

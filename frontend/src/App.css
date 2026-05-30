@@ -335,7 +335,8 @@
   background: var(--danger);
   color: white;
   border-color: var(--danger);
-  animation: recording-glow 1.5s ease-in-out infinite;
+  animation: recording-glow 1s ease-in-out infinite;
+  transform: scale(1.1);
 }
 
 .handsfree-indicator.processing {
