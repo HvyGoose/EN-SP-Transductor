@@ -36,6 +36,7 @@ function App() {
   const conversationStreamRef = useRef(null);
   const silenceTimeoutRef = useRef(null);
   const isProcessingRef = useRef(false);
+  const conversationModeRef = useRef(false); // Ref to track mode in callbacks
   
   // Refs
   const debounceRef = useRef(null);
@@ -180,8 +181,10 @@ function App() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       conversationStreamRef.current = stream;
+      conversationModeRef.current = true; // Set ref
       setConversationMode(true);
       setConversationHistory([]);
+      isProcessingRef.current = false;
       toast.success("Conversation mode started! Speak in English or Spanish.");
       startListening(stream);
     } catch (err) {
@@ -191,13 +194,16 @@ function App() {
   };
 
   const stopConversationMode = () => {
+    conversationModeRef.current = false; // Clear ref
     setConversationMode(false);
     setIsListening(false);
-    if (conversationRecorderRef.current) {
+    isProcessingRef.current = false;
+    if (conversationRecorderRef.current && conversationRecorderRef.current.state === 'recording') {
       conversationRecorderRef.current.stop();
     }
     if (conversationStreamRef.current) {
       conversationStreamRef.current.getTracks().forEach(track => track.stop());
+      conversationStreamRef.current = null;
     }
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current);
@@ -206,7 +212,13 @@ function App() {
   };
 
   const startListening = (stream) => {
-    if (!stream || isProcessingRef.current) return;
+    // Use ref to check if still in conversation mode
+    if (!stream || !conversationModeRef.current) return;
+    if (isProcessingRef.current) {
+      // If processing, wait and retry
+      setTimeout(() => startListening(stream), 500);
+      return;
+    }
     
     const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
     conversationRecorderRef.current = mediaRecorder;
@@ -219,10 +231,13 @@ function App() {
     };
 
     mediaRecorder.onstop = async () => {
-      if (chunks.length === 0 || isProcessingRef.current) {
+      // Check ref instead of state
+      if (!conversationModeRef.current) return;
+      
+      if (chunks.length === 0) {
         // Restart listening if still in conversation mode
-        if (conversationMode && conversationStreamRef.current) {
-          setTimeout(() => startListening(conversationStreamRef.current), 500);
+        if (conversationModeRef.current && conversationStreamRef.current) {
+          setTimeout(() => startListening(conversationStreamRef.current), 300);
         }
         return;
       }
@@ -264,35 +279,35 @@ function App() {
             audio.onended = () => {
               URL.revokeObjectURL(audioUrl);
               isProcessingRef.current = false;
-              // Continue listening
-              if (conversationMode && conversationStreamRef.current) {
+              // Continue listening - use ref
+              if (conversationModeRef.current && conversationStreamRef.current) {
                 startListening(conversationStreamRef.current);
               }
             };
             audio.onerror = () => {
               isProcessingRef.current = false;
-              if (conversationMode && conversationStreamRef.current) {
+              if (conversationModeRef.current && conversationStreamRef.current) {
                 startListening(conversationStreamRef.current);
               }
             };
             await audio.play();
           } else {
             isProcessingRef.current = false;
-            if (conversationMode && conversationStreamRef.current) {
+            if (conversationModeRef.current && conversationStreamRef.current) {
               startListening(conversationStreamRef.current);
             }
           }
         } else {
           isProcessingRef.current = false;
-          // Continue listening
-          if (conversationMode && conversationStreamRef.current) {
+          // Continue listening - use ref
+          if (conversationModeRef.current && conversationStreamRef.current) {
             startListening(conversationStreamRef.current);
           }
         }
       } catch (err) {
         console.error("Conversation error:", err);
         isProcessingRef.current = false;
-        if (conversationMode && conversationStreamRef.current) {
+        if (conversationModeRef.current && conversationStreamRef.current) {
           setTimeout(() => startListening(conversationStreamRef.current), 1000);
         }
       }
