@@ -37,7 +37,9 @@ function App() {
   const [handsFreeStatus, setHandsFreeStatus] = useState('waiting'); // 'waiting', 'listening', 'recording', 'processing'
   const [audioLevel, setAudioLevel] = useState(0);
   const [silenceDuration, setSilenceDuration] = useState(2); // Default 2 seconds
+  const [peakAudioLevel, setPeakAudioLevel] = useState(0); // Track peak level during recording
   const silenceDurationRef = useRef(2);
+  const peakAudioLevelRef = useRef(0);
   const conversationRecorderRef = useRef(null);
   const conversationStreamRef = useRef(null);
   const silenceTimeoutRef = useRef(null);
@@ -357,8 +359,13 @@ function App() {
         if (!isSpeakingRef.current) {
           console.log("Speech started, level:", average);
           isSpeakingRef.current = true;
+          peakAudioLevelRef.current = average; // Reset peak
           setHandsFreeStatus('recording');
           handsFreeStatusRef.current = 'recording';
+        }
+        // Track peak audio level
+        if (average > peakAudioLevelRef.current) {
+          peakAudioLevelRef.current = average;
         }
         silenceStartRef.current = null; // Reset silence timer
       } else {
@@ -396,6 +403,7 @@ function App() {
   // Process the recorded audio
   const processRecordedAudio = async () => {
     console.log("Processing recorded audio, chunks:", recordingChunksRef.current.length);
+    console.log("Peak audio level during recording:", peakAudioLevelRef.current);
     
     if (recordingChunksRef.current.length === 0) {
       restartListening();
@@ -408,6 +416,13 @@ function App() {
     // Skip if too small (likely just noise)
     if (audioBlob.size < 5000) {
       console.log("Audio too small, skipping");
+      restartListening();
+      return;
+    }
+    
+    // Skip if peak audio level was too low (likely background noise, not real speech)
+    if (peakAudioLevelRef.current < 20) {
+      console.log("Peak audio level too low, likely noise - skipping");
       restartListening();
       return;
     }
@@ -470,6 +485,7 @@ function App() {
     if (!handsFreeModeRef.current || !conversationModeRef.current) return;
     
     recordingChunksRef.current = [];
+    peakAudioLevelRef.current = 0; // Reset peak level
     setHandsFreeStatus('listening');
     handsFreeStatusRef.current = 'listening';
     

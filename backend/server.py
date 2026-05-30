@@ -416,20 +416,34 @@ async def conversation_mode(audio: UploadFile = File(...)):
             "thank you", "thanks for watching", "thank you for watching",
             "thanks for listening", "thank you for listening",
             "subscribe", "like and subscribe", "see you next time",
-            "goodbye", "bye", "bye bye",
-            "silence", "music", "applause",
+            "goodbye", "bye", "bye bye", "see you", "see ya",
+            "silence", "music", "applause", "laughter",
             "...", ". .", "..", "。", "،",
+            "you", "the", "a", "i", "it", "is", "to", "and",
+            "oh", "ah", "um", "uh", "hmm", "hm",
+            "okay", "ok", "yeah", "yes", "no", "so",
+            "whisper", "transcribed", "otter", "subtitles",
+            "inaudible", "indistinct", "unintelligible",
+            "foreign", "speaking foreign language",
+            "music playing", "background noise"
         ]
         
         # Check if it's likely a hallucination
         lower_text = original_text.lower().strip()
+        
+        # Remove punctuation for checking
+        import re
+        clean_text = re.sub(r'[^\w\s]', '', lower_text).strip()
+        
         is_hallucination = (
             not original_text or
-            len(original_text) < 3 or
+            len(clean_text) < 3 or
             original_text in [".", "..", "...", ". .", ". . ."] or
-            any(lower_text == pattern or lower_text.startswith(pattern + ".") or lower_text.startswith(pattern + " ") 
-                for pattern in hallucination_patterns) or
-            all(c in '.,!?¿¡ \n\t' for c in original_text)  # Only punctuation
+            clean_text in hallucination_patterns or
+            any(clean_text == pattern for pattern in hallucination_patterns) or
+            any(clean_text.startswith(pattern + " ") for pattern in ["thank", "thanks", "subscribe", "like"]) or
+            all(c in '.,!?¿¡ \n\t' for c in original_text) or  # Only punctuation
+            (len(clean_text.split()) == 1 and clean_text in hallucination_patterns)  # Single common word
         )
         
         if is_hallucination:
