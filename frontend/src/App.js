@@ -15,7 +15,8 @@ import {
   WifiSlash,
   WifiHigh,
   Crown,
-  Book
+  Book,
+  Envelope
 } from "@phosphor-icons/react";
 import { offlineTranslator, offlineSpeechSynthesis } from "@/services/offlineService";
 
@@ -39,10 +40,18 @@ function App() {
   const [isPremium, setIsPremium] = useState(() => {
     return localStorage.getItem('translator_premium') === 'true';
   });
+  const [premiumEmail, setPremiumEmail] = useState(() => {
+    return localStorage.getItem('translator_email') || '';
+  });
   const [offlineMode, setOfflineMode] = useState(false);
   const [showPhrasebook, setShowPhrasebook] = useState(false);
   const [phrasebookCategory, setPhrasebookCategory] = useState(null);
   const [offlineTranslation, setOfflineTranslation] = useState(null);
+  
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentEmail, setPaymentEmail] = useState('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   
   // Conversation mode state
   const [conversationMode, setConversationMode] = useState(false);
@@ -107,12 +116,95 @@ function App() {
     offlineTranslator.loadPhrasebook();
   }, []);
 
-  // Toggle premium (for demo - in production this would be tied to payment)
-  const togglePremium = () => {
-    const newValue = !isPremium;
-    setIsPremium(newValue);
-    localStorage.setItem('translator_premium', newValue.toString());
-    toast.success(newValue ? "Premium activated! Offline mode unlocked." : "Switched to free version.");
+  // Check premium status on mount (if email is saved)
+  useEffect(() => {
+    const checkPremiumStatus = async () => {
+      const savedEmail = localStorage.getItem('translator_email');
+      if (savedEmail) {
+        try {
+          const response = await axios.post(`${API}/payments/check-premium`, {
+            email: savedEmail.toLowerCase()
+          });
+          if (response.data.is_premium) {
+            setIsPremium(true);
+            localStorage.setItem('translator_premium', 'true');
+          }
+        } catch (err) {
+          console.error('Premium check failed:', err);
+        }
+      }
+    };
+    checkPremiumStatus();
+  }, []);
+
+  // Open payment modal (Crown button click)
+  const handlePremiumClick = () => {
+    if (isPremium) {
+      // Already premium - show status
+      toast.success(`Premium active! (${premiumEmail})`);
+      return;
+    }
+    setShowPaymentModal(true);
+  };
+
+  // Initiate Stripe checkout
+  const initiateCheckout = async () => {
+    if (!paymentEmail || !paymentEmail.includes('@')) {
+      toast.error('Please enter a valid email');
+      return;
+    }
+    
+    setIsProcessingPayment(true);
+    
+    try {
+      const response = await axios.post(`${API}/payments/create-checkout`, {
+        origin_url: window.location.origin,
+        email: paymentEmail.toLowerCase()
+      });
+      
+      // Save email for later verification
+      localStorage.setItem('translator_email', paymentEmail.toLowerCase());
+      
+      // Redirect to Stripe checkout
+      window.location.href = response.data.checkout_url;
+      
+    } catch (err) {
+      console.error('Checkout error:', err);
+      toast.error('Failed to start checkout. Please try again.');
+      setIsProcessingPayment(false);
+    }
+  };
+
+  // Check premium status by email (for returning users)
+  const checkPremiumByEmail = async () => {
+    if (!paymentEmail || !paymentEmail.includes('@')) {
+      toast.error('Please enter a valid email');
+      return;
+    }
+    
+    setIsProcessingPayment(true);
+    
+    try {
+      const response = await axios.post(`${API}/payments/check-premium`, {
+        email: paymentEmail.toLowerCase()
+      });
+      
+      if (response.data.is_premium) {
+        setIsPremium(true);
+        setPremiumEmail(paymentEmail.toLowerCase());
+        localStorage.setItem('translator_premium', 'true');
+        localStorage.setItem('translator_email', paymentEmail.toLowerCase());
+        setShowPaymentModal(false);
+        toast.success('Premium restored! Welcome back.');
+      } else {
+        toast.info('No premium found for this email. You can purchase below.');
+      }
+    } catch (err) {
+      console.error('Premium check error:', err);
+      toast.error('Could not verify. Please try again.');
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   // Toggle offline mode (premium only)
@@ -1018,6 +1110,106 @@ function App() {
         </div>
       )}
       
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="conversation-overlay">
+          <div className="conversation-modal payment-modal" style={{ maxWidth: '400px' }}>
+            <div className="conversation-header">
+              <h2 className="font-heading text-xl font-black uppercase tracking-tight">
+                <Crown size={24} weight="fill" className="inline mr-2 text-yellow-500" />
+                Unlock Premium
+              </h2>
+              <button
+                data-testid="close-payment-modal-btn"
+                className="swiss-btn p-2 border border-black"
+                onClick={() => { setShowPaymentModal(false); setPaymentEmail(''); }}
+              >
+                <X size={20} weight="bold" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6">
+                <p className="font-mono text-sm mb-4">Premium includes:</p>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Check size={16} weight="bold" className="text-green-600" />
+                    <span>Offline translation mode</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check size={16} weight="bold" className="text-green-600" />
+                    <span>250+ phrase phrasebook</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check size={16} weight="bold" className="text-green-600" />
+                    <span>Ad-free experience</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check size={16} weight="bold" className="text-green-600" />
+                    <span>One-time payment - $4.99</span>
+                  </li>
+                </ul>
+              </div>
+              
+              <div className="mb-4">
+                <label className="text-xs font-mono uppercase tracking-wider text-gray-600 block mb-2">
+                  Your Email
+                </label>
+                <div className="relative">
+                  <Envelope size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    data-testid="payment-email-input"
+                    type="email"
+                    value={paymentEmail}
+                    onChange={(e) => setPaymentEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="w-full border-2 border-black p-3 pl-10 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    disabled={isProcessingPayment}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Used to restore premium on other devices
+                </p>
+              </div>
+              
+              <button
+                data-testid="checkout-btn"
+                className="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-mono uppercase tracking-wider py-3 border-2 border-black mb-3 flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                onClick={initiateCheckout}
+                disabled={isProcessingPayment || !paymentEmail}
+              >
+                {isProcessingPayment ? (
+                  <span>Processing...</span>
+                ) : (
+                  <>
+                    <Crown size={18} weight="fill" />
+                    Purchase Premium - $4.99
+                  </>
+                )}
+              </button>
+              
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-500 font-mono">or</span>
+                </div>
+              </div>
+              
+              <button
+                data-testid="restore-btn"
+                className="w-full bg-white hover:bg-gray-100 text-black font-mono uppercase tracking-wider py-2 border-2 border-black text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                onClick={checkPremiumByEmail}
+                disabled={isProcessingPayment || !paymentEmail}
+              >
+                Restore Previous Purchase
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <header className="translator-header">
         <div className="flex items-center gap-3">
@@ -1040,7 +1232,7 @@ function App() {
           <button
             data-testid="premium-btn"
             className={`swiss-btn flex items-center gap-1 px-2 py-2 border text-sm font-mono ${isPremium ? 'bg-yellow-400 border-yellow-500 text-black' : 'border-black'}`}
-            onClick={togglePremium}
+            onClick={handlePremiumClick}
             title={isPremium ? "Premium Active" : "Upgrade to Premium"}
           >
             <Crown size={16} weight={isPremium ? "fill" : "bold"} />
@@ -1232,7 +1424,7 @@ function App() {
             <span className="ad-text">Free Version</span>
             <button 
               className="upgrade-btn"
-              onClick={togglePremium}
+              onClick={handlePremiumClick}
             >
               <Crown size={14} weight="fill" />
               Upgrade for Offline Mode & No Ads

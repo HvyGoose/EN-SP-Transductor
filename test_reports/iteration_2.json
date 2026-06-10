@@ -1,0 +1,50 @@
+{
+  "summary": "Tested Stripe payment integration end-to-end (backend + frontend). All 3 payment endpoints work correctly (7/7 pytest cases passed). Frontend Crown button opens modal, email input + checkout button correctly redirect to Stripe checkout (cs_test_... session created), restore-btn correctly reports 'No premium found' for unknown email, and PaymentSuccess page renders Processing/Success/Failed states with working 'Go Back' navigation.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/payments/status/{session_id}", "issue": "Returns HTTP 500 for invalid/unknown session_id; would be cleaner to return 404. Frontend polls 10x (~20s) on 500 before settling on 'Payment Failed' which works but is slow."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "POST /api/payments/create-checkout returns checkout_url + session_id (with and without email)",
+    "POST /api/payments/create-checkout rejects missing origin_url",
+    "GET /api/payments/status/{session_id} returns status & payment_status for valid session",
+    "GET /api/payments/status/{session_id} errors on invalid session_id",
+    "POST /api/payments/check-premium returns is_premium=false for unknown email",
+    "POST /api/payments/check-premium rejects missing email (422)",
+    "Crown button (premium-btn) opens Unlock Premium modal",
+    "Modal shows payment-email-input, checkout-btn, restore-btn",
+    "restore-btn shows 'No premium found' info toast for unknown email",
+    "checkout-btn redirects user to Stripe Checkout (https://checkout.stripe.com/c/pay/cs_test_...)",
+    "/payment-success without session_id shows 'Payment Failed' immediately",
+    "'Go Back' button on Payment Failed navigates to /",
+    "/payment-success?session_id=... renders 'Processing Payment' initial state and polls status"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_payments.py",
+    "/app/test_reports/pytest/pytest_payments.xml"
+  ],
+  "action_items": [
+    "(Optional, minor) Return HTTP 404 instead of 500 in GET /api/payments/status/{session_id} when Stripe lookup fails so frontend can fail-fast rather than polling for ~20s."
+  ],
+  "critical_code_review_comments": [
+    "App.js is ~1440 lines — should be split into smaller modules (PaymentModal, ConversationMode, Phrasebook, hooks) for maintainability (>700 line threshold).",
+    "PaymentSuccess.js polling loop uses [sessionId, attempts] in useEffect deps; this works but re-creates the closure on each attempt — acceptable, but could be simplified with a single interval + cleanup.",
+    "create_checkout endpoint catches all exceptions and returns 500 with raw exception detail; consider mapping Stripe errors to 4xx where appropriate and avoid leaking internal error messages."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_payments.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Stripe test card 4242 4242 4242 4242 (not exercised — Stripe-hosted page out of scope for headless test)",
+  "seed_data_creation": "Test data created with TEST_ prefix in payment_transactions collection (pending sessions). Not cleaned up — Stripe test sessions auto-expire.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend payment endpoints (create-checkout, status, check-premium) and frontend payment flow are fully functional. Stripe checkout redirect confirmed working. PaymentSuccess routing + Go Back navigation works. Only minor improvement: backend should return 404 not 500 for invalid session_ids."
+}

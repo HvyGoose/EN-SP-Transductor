@@ -1,7 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "@/index.css";
 import App from "@/App";
+import PaymentSuccess from "@/PaymentSuccess";
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
@@ -19,6 +21,11 @@ if ('serviceWorker' in navigator) {
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/payment-success" element={<PaymentSuccess />} />
+      </Routes>
+    </BrowserRouter>
   </React.StrictMode>,
 );
