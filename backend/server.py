@@ -685,6 +685,10 @@ async def get_payment_status(session_id: str, http_request: Request):
         
     except Exception as e:
         logger.error(f"Get payment status error: {e}")
+        # Return 404 for invalid/not found session IDs (Stripe returns "resource_missing" or similar)
+        error_str = str(e).lower()
+        if "resource" in error_str or "not found" in error_str or "invalid" in error_str or "no such" in error_str:
+            raise HTTPException(status_code=404, detail="Session not found")
         raise HTTPException(status_code=500, detail=str(e))
 
 

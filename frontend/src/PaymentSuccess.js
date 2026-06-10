@@ -39,7 +39,13 @@ function PaymentSuccess() {
         }
       } catch (err) {
         console.error('Payment status check failed:', err);
-        if (attempts < 10) {
+        // If 404, the session doesn't exist - fail immediately
+        if (err.response && err.response.status === 404) {
+          setStatus('failed');
+          return;
+        }
+        // For other errors, retry a few times
+        if (attempts < 5) {
           setTimeout(() => setAttempts(a => a + 1), 2000);
         } else {
           setStatus('failed');

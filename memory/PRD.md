@@ -9,7 +9,7 @@ Build a quick English to Spanish real-time translator with:
 - Hands-free conversation mode with silence detection
 - PWA support for mobile installation
 - Offline mode with phrasebook (premium feature)
-- Free/Premium tier structure
+- Stripe payment integration for premium unlock
 
 ## Architecture
 - **Backend**: FastAPI + MongoDB + emergentintegrations library
@@ -17,6 +17,7 @@ Build a quick English to Spanish real-time translator with:
 - **AI Services**: GPT-5.2 for translation, Whisper for STT, OpenAI TTS for voice output
 - **PWA**: Service worker, manifest, installable on mobile
 - **Offline**: Browser Speech APIs + cached phrasebook (250+ phrases)
+- **Payments**: Stripe Checkout for premium upgrade ($4.99 one-time)
 
 ## User Personas
 - Language learners needing quick translations
@@ -33,10 +34,12 @@ Build a quick English to Spanish real-time translator with:
 6. Conversation mode (Press & Hold + Hands-Free)
 7. Adjustable settings (Pause Duration, Noise Filter)
 8. PWA installable on mobile
-9. Free/Premium tier structure
+9. Free/Premium tier with Stripe payments
 10. Offline mode (premium)
 
-## What's Been Implemented (Jan 2026)
+## What's Been Implemented
+
+### Jan 2026 - MVP & Features
 - ✅ GPT-5.2 powered translation API
 - ✅ Whisper speech-to-text API
 - ✅ OpenAI TTS text-to-speech API
@@ -55,31 +58,63 @@ Build a quick English to Spanish real-time translator with:
 - ✅ Offline mode with phrasebook (250+ phrases, 12 categories)
 - ✅ Browser Speech APIs for offline TTS
 - ✅ Free/Premium tier with ad banner
-- ✅ Premium toggle (crown button)
 - ✅ Phrasebook browser (book button)
+
+### Jun 2026 - Stripe Payment Integration
+- ✅ Stripe Checkout integration (test mode ready, live when account approved)
+- ✅ Payment modal with email capture (Crown button)
+- ✅ POST /api/payments/create-checkout endpoint
+- ✅ GET /api/payments/status/{session_id} endpoint
+- ✅ POST /api/payments/check-premium endpoint
+- ✅ Email-based premium status tracking in MongoDB
+- ✅ "Restore Previous Purchase" functionality
+- ✅ PaymentSuccess page with status polling
+- ✅ React Router integration for /payment-success route
+- ✅ Proper 404 handling for invalid session IDs
 
 ## Monetization
 - **Free Tier**: Online translation, voice features, ads shown
-- **Premium Tier**: Offline mode, no ads
+- **Premium Tier**: $4.99 one-time payment, offline mode, no ads
+- **Premium Tracking**: Email-based (no full auth system needed)
 
 ## API Endpoints
+
+### Translation
 - POST /api/translate - Text translation
 - POST /api/speech-to-text - Audio transcription
 - POST /api/text-to-speech - Generate audio
 - POST /api/conversation - Full conversation flow (STT + translate + TTS)
 - GET /api/history - Translation history
 
+### Payments
+- POST /api/payments/create-checkout - Create Stripe checkout session
+- GET /api/payments/status/{session_id} - Check payment status
+- POST /api/payments/check-premium - Check if email has premium
+- POST /api/webhook/stripe - Stripe webhook handler
+
+## Database Collections
+- `translation_history` - Translation logs
+- `payment_transactions` - Stripe session tracking
+- `premium_users` - Email-based premium status
+
 ## Environment
-- EMERGENT_LLM_KEY for all OpenAI services
-- MongoDB for translation history
+- EMERGENT_LLM_KEY - All OpenAI services
+- STRIPE_API_KEY - Stripe payments (test key in environment)
+- MongoDB - Data persistence
 
 ## Prioritized Backlog
-- P0: ✅ Complete (MVP + Hands-Free + PWA + Offline)
-- P1: Native mobile app via Mobile Agent
-- P2: Payment integration for premium, more language pairs
+- P0: ✅ COMPLETE - MVP + Hands-Free + PWA + Offline + Stripe Payments
+- P1: Deploy to production, submit to app stores
+- P2: Native mobile app via Mobile Agent for full offline AI
 
 ## Next Tasks
-1. Deploy to production
-2. Submit to Microsoft Store (PWABuilder)
-3. Submit to Google Play (TWA wrapper)
-4. Build native iOS/Android app via Mobile Agent for Option 3 full offline
+1. Complete Stripe account setup (user in progress)
+2. Switch Stripe test keys to live keys when account approved
+3. Deploy to production
+4. Submit to Microsoft Store (PWABuilder)
+5. Submit to Google Play (TWA wrapper)
+
+## Future Enhancements
+- Build native iOS/Android app via Mobile Agent for Option 3 full offline
+- Add more language pairs
+- Voice profiles/personalization
