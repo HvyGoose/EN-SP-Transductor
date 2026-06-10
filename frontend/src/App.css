@@ -464,6 +464,176 @@
   }
 }
 
+/* Connection badge */
+.connection-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-family: 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 8px;
+  border: 1px solid currentColor;
+}
+
+.connection-badge.online {
+  color: #22c55e;
+  border-color: #22c55e;
+}
+
+.connection-badge.offline,
+.connection-badge.offline-mode {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.connection-badge.offline-mode {
+  background: var(--danger);
+  color: white;
+}
+
+/* Offline badge on translation */
+.offline-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6rem;
+  font-family: 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+/* Phrasebook modal */
+.phrasebook-modal {
+  max-width: 500px;
+}
+
+.phrasebook-content {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.phrasebook-categories {
+  display: flex;
+  flex-direction: column;
+}
+
+.phrasebook-category-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--text);
+  background: transparent;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.phrasebook-category-btn:hover {
+  background: var(--surface);
+}
+
+.phrasebook-back-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--text);
+  background: var(--surface);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.phrasebook-phrases {
+  display: flex;
+  flex-direction: column;
+}
+
+.phrasebook-phrase {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.phrasebook-phrase:hover {
+  background: var(--surface);
+}
+
+.phrase-source {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.phrase-target {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+/* Ad banner */
+.ad-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(90deg, #1a1a1a 0%, #333 100%);
+  color: white;
+  padding: 8px 16px;
+  z-index: 50;
+}
+
+.ad-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 1rem;
+}
+
+.ad-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+
+.upgrade-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fbbf24;
+  color: black;
+  border: none;
+  padding: 6px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.upgrade-btn:hover {
+  background: #f59e0b;
+}
+
+/* Adjust main content when ad is showing */
+.translator-container:has(.ad-banner) .translator-main {
+  padding-bottom: 50px;
+}
+
 @keyframes listening-pulse {
   0%, 100% {
     box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4);

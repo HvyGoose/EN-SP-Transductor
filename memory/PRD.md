@@ -8,12 +8,15 @@ Build a quick English to Spanish real-time translator with:
 - Bidirectional support (English ↔ Spanish)
 - Hands-free conversation mode with silence detection
 - PWA support for mobile installation
+- Offline mode with phrasebook (premium feature)
+- Free/Premium tier structure
 
 ## Architecture
 - **Backend**: FastAPI + MongoDB + emergentintegrations library
 - **Frontend**: React with Swiss Brutalist design (grid borders, no rounded corners)
 - **AI Services**: GPT-5.2 for translation, Whisper for STT, OpenAI TTS for voice output
 - **PWA**: Service worker, manifest, installable on mobile
+- **Offline**: Browser Speech APIs + cached phrasebook (250+ phrases)
 
 ## User Personas
 - Language learners needing quick translations
@@ -30,6 +33,8 @@ Build a quick English to Spanish real-time translator with:
 6. Conversation mode (Press & Hold + Hands-Free)
 7. Adjustable settings (Pause Duration, Noise Filter)
 8. PWA installable on mobile
+9. Free/Premium tier structure
+10. Offline mode (premium)
 
 ## What's Been Implemented (Jan 2026)
 - ✅ GPT-5.2 powered translation API
@@ -47,6 +52,15 @@ Build a quick English to Spanish real-time translator with:
 - ✅ Audio level visualization
 - ✅ PWA support (installable on iOS/Android)
 - ✅ User documentation (/guide.html)
+- ✅ Offline mode with phrasebook (250+ phrases, 12 categories)
+- ✅ Browser Speech APIs for offline TTS
+- ✅ Free/Premium tier with ad banner
+- ✅ Premium toggle (crown button)
+- ✅ Phrasebook browser (book button)
+
+## Monetization
+- **Free Tier**: Online translation, voice features, ads shown
+- **Premium Tier**: Offline mode, no ads
 
 ## API Endpoints
 - POST /api/translate - Text translation
@@ -60,12 +74,12 @@ Build a quick English to Spanish real-time translator with:
 - MongoDB for translation history
 
 ## Prioritized Backlog
-- P0: ✅ Complete (MVP + Hands-Free + PWA)
-- P1: More language pairs, native mobile app
-- P2: Translation history UI, favorites, offline mode
+- P0: ✅ Complete (MVP + Hands-Free + PWA + Offline)
+- P1: Native mobile app via Mobile Agent
+- P2: Payment integration for premium, more language pairs
 
 ## Next Tasks
-1. Build native mobile app via Emergent Mobile Agent
-2. Add more language pairs (French, German, etc.)
-3. Show translation history in UI
-4. Add keyboard shortcuts
+1. Deploy to production
+2. Submit to Microsoft Store (PWABuilder)
+3. Submit to Google Play (TWA wrapper)
+4. Build native iOS/Android app via Mobile Agent for Option 3 full offline

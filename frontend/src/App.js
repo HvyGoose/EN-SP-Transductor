@@ -11,8 +11,13 @@ import {
   Stop,
   Chats,
   X,
-  Question
+  Question,
+  WifiSlash,
+  WifiHigh,
+  Crown,
+  Book
 } from "@phosphor-icons/react";
+import { offlineTranslator, offlineSpeechSynthesis } from "@/services/offlineService";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -28,6 +33,16 @@ function App() {
   const [isPlayingTarget, setIsPlayingTarget] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Offline & Premium state
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isPremium, setIsPremium] = useState(() => {
+    return localStorage.getItem('translator_premium') === 'true';
+  });
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [showPhrasebook, setShowPhrasebook] = useState(false);
+  const [phrasebookCategory, setPhrasebookCategory] = useState(null);
+  const [offlineTranslation, setOfflineTranslation] = useState(null);
   
   // Conversation mode state
   const [conversationMode, setConversationMode] = useState(false);
@@ -67,15 +82,86 @@ function App() {
   const sourceLangName = sourceLang === "en" ? "English" : "Spanish";
   const targetLangName = targetLang === "en" ? "English" : "Spanish";
 
+  // Online/Offline detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (!offlineMode) toast.success("Back online!");
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.warning("You're offline. Using phrasebook mode.");
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [offlineMode]);
+
+  // Load phrasebook on mount
+  useEffect(() => {
+    offlineTranslator.loadPhrasebook();
+  }, []);
+
+  // Toggle premium (for demo - in production this would be tied to payment)
+  const togglePremium = () => {
+    const newValue = !isPremium;
+    setIsPremium(newValue);
+    localStorage.setItem('translator_premium', newValue.toString());
+    toast.success(newValue ? "Premium activated! Offline mode unlocked." : "Switched to free version.");
+  };
+
+  // Toggle offline mode (premium only)
+  const toggleOfflineMode = () => {
+    if (!isPremium) {
+      toast.error("Offline mode is a premium feature. Upgrade to unlock!");
+      return;
+    }
+    setOfflineMode(!offlineMode);
+    toast.info(offlineMode ? "Switched to online mode" : "Offline mode enabled - using phrasebook");
+  };
+
+  // Offline translation using phrasebook
+  const translateOffline = useCallback((text) => {
+    const result = offlineTranslator.translate(text, sourceLang);
+    setOfflineTranslation(result);
+    if (result) {
+      setTranslatedText(result.translation);
+      return true;
+    }
+    return false;
+  }, [sourceLang]);
+
   // Translation function
   const translateText = useCallback(async (text) => {
     if (!text.trim()) {
       setTranslatedText("");
+      setOfflineTranslation(null);
+      return;
+    }
+
+    // Use offline translation if offline or in offline mode
+    if (!isOnline || offlineMode) {
+      setIsTranslating(true);
+      const result = offlineTranslator.translate(text, sourceLang);
+      setOfflineTranslation(result);
+      if (result) {
+        setTranslatedText(result.translation);
+      } else {
+        setTranslatedText("[Phrase not in offline dictionary]");
+        setOfflineTranslation({ notFound: true });
+      }
+      setIsTranslating(false);
       return;
     }
 
     setIsTranslating(true);
     setError(null);
+    setOfflineTranslation(null);
 
     try {
       const response = await axios.post(`${API}/translate`, {
@@ -86,12 +172,20 @@ function App() {
       setTranslatedText(response.data.translated_text);
     } catch (err) {
       console.error("Translation error:", err);
-      setError("Translation failed. Please try again.");
-      toast.error("Translation failed");
+      // Fallback to offline translation on error
+      const result = offlineTranslator.translate(text, sourceLang);
+      setOfflineTranslation(result);
+      if (result) {
+        setTranslatedText(result.translation);
+        toast.info("Using offline translation");
+      } else {
+        setError("Translation failed. Please try again.");
+        toast.error("Translation failed");
+      }
     } finally {
       setIsTranslating(false);
     }
-  }, [sourceLang, targetLang]);
+  }, [sourceLang, targetLang, isOnline, offlineMode]);
 
   // Debounced translation on text change
   useEffect(() => {
@@ -633,6 +727,19 @@ function App() {
 
     setPlaying(true);
 
+    // Use browser speech synthesis when offline or in offline mode
+    if (!isOnline || offlineMode) {
+      try {
+        await offlineSpeechSynthesis.speak(text, lang);
+        setPlaying(false);
+      } catch (err) {
+        console.error("Offline TTS error:", err);
+        setPlaying(false);
+        toast.error("Speech not available offline");
+      }
+      return;
+    }
+
     try {
       const response = await axios.post(`${API}/text-to-speech`, {
         text: text,
@@ -653,13 +760,21 @@ function App() {
       };
       audioRef.current.onerror = () => {
         setPlaying(false);
-        toast.error("Audio playback failed");
+        // Fallback to browser TTS
+        offlineSpeechSynthesis.speak(text, lang).catch(() => {});
+        toast.error("Audio playback failed, using device voice");
       };
       await audioRef.current.play();
     } catch (err) {
       console.error("TTS error:", err);
-      setPlaying(false);
-      toast.error("Text-to-speech failed");
+      // Fallback to browser speech synthesis
+      try {
+        await offlineSpeechSynthesis.speak(text, lang);
+        setPlaying(false);
+      } catch (fallbackErr) {
+        setPlaying(false);
+        toast.error("Text-to-speech failed");
+      }
     }
   };
 
@@ -840,12 +955,119 @@ function App() {
         </div>
       )}
       
+      {/* Phrasebook Modal */}
+      {showPhrasebook && (
+        <div className="conversation-overlay">
+          <div className="conversation-modal phrasebook-modal">
+            <div className="conversation-header">
+              <h2 className="font-heading text-xl font-black uppercase tracking-tight">
+                <Book size={24} weight="bold" className="inline mr-2" />
+                Phrasebook
+              </h2>
+              <button
+                className="swiss-btn p-2 border border-black"
+                onClick={() => { setShowPhrasebook(false); setPhrasebookCategory(null); }}
+              >
+                <X size={20} weight="bold" />
+              </button>
+            </div>
+            
+            <div className="phrasebook-content">
+              {!phrasebookCategory ? (
+                // Category list
+                <div className="phrasebook-categories">
+                  {offlineTranslator.getCategories().map(cat => (
+                    <button
+                      key={cat.key}
+                      className="phrasebook-category-btn"
+                      onClick={() => setPhrasebookCategory(cat.key)}
+                    >
+                      <span>{cat.name[sourceLang]}</span>
+                      <span className="text-gray-400">→</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                // Phrases in category
+                <div className="phrasebook-phrases">
+                  <button
+                    className="phrasebook-back-btn"
+                    onClick={() => setPhrasebookCategory(null)}
+                  >
+                    ← Back to categories
+                  </button>
+                  {offlineTranslator.getCategory(phrasebookCategory)?.phrases.map((phrase, idx) => (
+                    <div 
+                      key={idx} 
+                      className="phrasebook-phrase"
+                      onClick={() => {
+                        setSourceText(phrase[sourceLang]);
+                        setTranslatedText(phrase[targetLang]);
+                        setShowPhrasebook(false);
+                        setPhrasebookCategory(null);
+                      }}
+                    >
+                      <div className="phrase-source">{phrase[sourceLang]}</div>
+                      <div className="phrase-target">{phrase[targetLang]}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <header className="translator-header">
-        <h1 className="font-heading text-xl sm:text-2xl font-black uppercase tracking-tight">
-          Translator
-        </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <h1 className="font-heading text-xl sm:text-2xl font-black uppercase tracking-tight">
+            Translator
+          </h1>
+          {/* Connection status */}
+          <div className={`connection-badge ${isOnline ? 'online' : 'offline'} ${offlineMode ? 'offline-mode' : ''}`}>
+            {offlineMode ? (
+              <><WifiSlash size={14} /> <span className="hidden sm:inline">Offline</span></>
+            ) : isOnline ? (
+              <><WifiHigh size={14} /> <span className="hidden sm:inline">Online</span></>
+            ) : (
+              <><WifiSlash size={14} /> <span className="hidden sm:inline">No Connection</span></>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Premium toggle */}
+          <button
+            data-testid="premium-btn"
+            className={`swiss-btn flex items-center gap-1 px-2 py-2 border text-sm font-mono ${isPremium ? 'bg-yellow-400 border-yellow-500 text-black' : 'border-black'}`}
+            onClick={togglePremium}
+            title={isPremium ? "Premium Active" : "Upgrade to Premium"}
+          >
+            <Crown size={16} weight={isPremium ? "fill" : "bold"} />
+          </button>
+          
+          {/* Offline mode toggle (premium only) */}
+          {isPremium && (
+            <button
+              data-testid="offline-mode-btn"
+              className={`swiss-btn flex items-center gap-1 px-2 py-2 border text-sm font-mono ${offlineMode ? 'bg-black text-white' : 'border-black'}`}
+              onClick={toggleOfflineMode}
+              title="Toggle Offline Mode"
+            >
+              <WifiSlash size={16} weight="bold" />
+            </button>
+          )}
+          
+          {/* Phrasebook button */}
+          <button
+            data-testid="phrasebook-btn"
+            className="swiss-btn flex items-center gap-1 px-2 py-2 border border-black text-sm font-mono"
+            onClick={() => setShowPhrasebook(true)}
+            title="Phrasebook"
+          >
+            <Book size={16} weight="bold" />
+          </button>
+          
           <a
             href="/guide.html"
             target="_blank"
@@ -867,7 +1089,7 @@ function App() {
           <div className="flex items-center gap-2">
             <div className={`status-dot ${error ? 'error' : isTranslating ? 'loading' : ''}`} />
             <span className="text-xs font-mono uppercase tracking-wider hidden sm:inline">
-              {error ? 'Error' : isTranslating ? 'Translating' : 'Ready'}
+              {error ? 'Error' : isTranslating ? 'Translating' : offlineMode ? 'Offline' : 'Ready'}
             </span>
           </div>
         </div>
@@ -954,15 +1176,27 @@ function App() {
             >
               {targetLangName}
             </span>
+            {/* Offline translation indicator */}
+            {offlineTranslation && !offlineTranslation.notFound && (
+              <span className="offline-badge">
+                <WifiSlash size={12} />
+                {offlineTranslation.confidence === 'exact' ? 'Exact match' : 'Similar phrase'}
+              </span>
+            )}
           </div>
           
           <div className="pane-content">
             <div 
               data-testid="target-output"
-              className={`output-text ${!translatedText ? 'output-placeholder' : ''}`}
+              className={`output-text ${!translatedText ? 'output-placeholder' : ''} ${offlineTranslation?.notFound ? 'text-red-500' : ''}`}
             >
               {translatedText || `${targetLangName} translation will appear here...`}
             </div>
+            {offlineTranslation?.notFound && (
+              <p className="text-xs text-gray-500 mt-2">
+                Try a common phrase or <button className="underline" onClick={() => setShowPhrasebook(true)}>browse the phrasebook</button>
+              </p>
+            )}
           </div>
           
           <div className="pane-toolbar">
@@ -990,6 +1224,22 @@ function App() {
           </div>
         </div>
       </main>
+      
+      {/* Free tier ad banner */}
+      {!isPremium && (
+        <div className="ad-banner" data-testid="ad-banner">
+          <div className="ad-content">
+            <span className="ad-text">Free Version</span>
+            <button 
+              className="upgrade-btn"
+              onClick={togglePremium}
+            >
+              <Crown size={14} weight="fill" />
+              Upgrade for Offline Mode & No Ads
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
