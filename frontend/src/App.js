@@ -381,6 +381,34 @@ function App() {
     }
   };
 
+  // Handle Conversation Mode button click (premium check)
+  const handleConversationClick = () => {
+    if (conversationMode) {
+      stopConversationMode();
+      return;
+    }
+    
+    if (!isPremium) {
+      // Show upgrade prompt for free users
+      toast.info(
+        <div>
+          <strong>Conversation Mode is Premium</strong>
+          <p className="text-sm mt-1">Auto-detect language & hands-free translation</p>
+          <button 
+            onClick={() => { setShowPaymentModal(true); toast.dismiss(); }}
+            className="mt-2 bg-yellow-400 text-black px-3 py-1 text-sm font-bold"
+          >
+            Unlock Premium - $4.99
+          </button>
+        </div>,
+        { duration: 5000 }
+      );
+      return;
+    }
+    
+    startConversationMode();
+  };
+
   // Conversation Mode Functions
   const startConversationMode = async () => {
     try {
@@ -1272,11 +1300,13 @@ function App() {
           </a>
           <button
             data-testid="conversation-mode-btn"
-            className={`swiss-btn flex items-center gap-2 px-3 py-2 border border-black text-sm font-mono uppercase tracking-wider ${conversationMode ? 'bg-black text-white' : ''}`}
-            onClick={conversationMode ? stopConversationMode : startConversationMode}
+            className={`swiss-btn flex items-center gap-2 px-3 py-2 border text-sm font-mono uppercase tracking-wider ${conversationMode ? 'bg-black text-white border-black' : isPremium ? 'border-black' : 'border-gray-400 text-gray-600'}`}
+            onClick={handleConversationClick}
+            title={isPremium ? "Conversation Mode" : "Premium Feature - Upgrade to unlock"}
           >
             <Chats size={18} weight="bold" />
             <span className="hidden sm:inline">Conversation</span>
+            {!isPremium && <Crown size={12} weight="fill" className="text-yellow-500" />}
           </button>
           <div className="flex items-center gap-2">
             <div className={`status-dot ${error ? 'error' : isTranslating ? 'loading' : ''}`} />
@@ -1313,9 +1343,10 @@ function App() {
           <div className="pane-toolbar">
             <button
               data-testid="mic-button"
-              className={`toolbar-btn swiss-btn ${isRecording ? 'recording-active' : ''}`}
+              className={`toolbar-btn swiss-btn ${isRecording ? 'recording-active' : ''} ${!isPremium ? 'free-highlight' : ''}`}
               onClick={handleMicClick}
               style={isRecording ? { color: 'var(--danger)', borderColor: 'var(--danger)' } : {}}
+              title="Voice input - Free feature!"
             >
               {isRecording ? <Stop size={20} weight="fill" /> : <Microphone size={20} weight="bold" />}
               <span className="text-xs uppercase tracking-wider hidden sm:inline">
@@ -1324,8 +1355,9 @@ function App() {
             </button>
             <button
               data-testid="speaker-source-button"
-              className={`toolbar-btn swiss-btn ${isPlayingSource ? 'playing-active' : ''}`}
+              className={`toolbar-btn swiss-btn ${isPlayingSource ? 'playing-active' : ''} ${!isPremium ? 'free-highlight' : ''}`}
               onClick={handlePlaySource}
+              title="Listen to pronunciation - Free feature!"
             >
               <SpeakerHigh size={20} weight={isPlayingSource ? "fill" : "bold"} />
               <span className="text-xs uppercase tracking-wider hidden sm:inline">
@@ -1394,8 +1426,9 @@ function App() {
           <div className="pane-toolbar">
             <button
               data-testid="speaker-target-button"
-              className={`toolbar-btn swiss-btn ${isPlayingTarget ? 'playing-active' : ''}`}
+              className={`toolbar-btn swiss-btn ${isPlayingTarget ? 'playing-active' : ''} ${!isPremium ? 'free-highlight' : ''}`}
               onClick={handlePlayTarget}
+              title="Listen to translation - Free feature!"
             >
               <SpeakerHigh size={20} weight={isPlayingTarget ? "fill" : "bold"} />
               <span className="text-xs uppercase tracking-wider hidden sm:inline">
@@ -1417,17 +1450,20 @@ function App() {
         </div>
       </main>
       
-      {/* Free tier ad banner */}
+      {/* Free tier banner with voice hint */}
       {!isPremium && (
         <div className="ad-banner" data-testid="ad-banner">
           <div className="ad-content">
-            <span className="ad-text">Free Version</span>
+            <span className="ad-text flex items-center gap-2">
+              <SpeakerHigh size={16} weight="bold" className="text-green-400" />
+              <span>Free: Voice & Listen included!</span>
+            </span>
             <button 
               className="upgrade-btn"
               onClick={handlePremiumClick}
             >
               <Crown size={14} weight="fill" />
-              Upgrade for Offline Mode & No Ads
+              Upgrade for Conversation Mode
             </button>
           </div>
         </div>

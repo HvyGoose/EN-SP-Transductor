@@ -73,8 +73,11 @@ Build a quick English to Spanish real-time translator with:
 - ✅ Proper 404 handling for invalid session IDs
 
 ## Monetization
-- **Free Tier**: Online translation, voice features, ads shown
-- **Premium Tier**: $4.99 one-time payment, offline mode, no ads
+- **Free Tier**: Online translation, voice input, text-to-speech (Listen), ads shown
+- **Premium Tier**: $4.99 one-time payment
+  - Conversation Mode (Press & Hold + Hands-Free with auto language detection)
+  - Offline mode with 250+ phrase phrasebook
+  - No ads
 - **Premium Tracking**: Email-based (no full auth system needed)
 
 ## API Endpoints
