@@ -101,3 +101,88 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Test the voice-input bug fix on preview frontend. The production bug was that voice input captured only part of a phrase once, then later attempts produced no translation."
+
+frontend:
+  - task: "Voice Input - Mic Button UI State"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Initial test - need to verify mic button presence, click behavior, and state changes"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Mic button (data-testid='mic-button') is present, visible, enabled, and clickable. Button correctly handles permission denial by showing error toast and remaining in idle state. Button remains responsive after multiple clicks. No broken UI state detected."
+
+  - task: "Voice Input - Recording State Management"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Need to verify recording state toggles correctly and no broken state after repeated interactions"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Recording state management works correctly. When microphone permission is denied, the button correctly stays in idle state (does not falsely show recording). Error handling is proper with toast notification. Code includes isStartingRecordingRef to prevent double-clicks and proper cleanup of streams. LIMITATION: Cannot test actual recording state with real microphone in automation."
+
+  - task: "Voice Input - Repeated Use Robustness"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Critical test - verify the bug fix that voice input works correctly on repeated attempts without broken state"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Button remains fully functional after 7+ repeated clicks. No broken state, no console errors, no UI freezing. Button stays enabled and responsive throughout. Code improvements visible: isStartingRecordingRef prevents race conditions, proper stream cleanup in stopMediaTracks, MIN_RECORDING_DURATION_MS ensures minimum recording time. LIMITATION: Cannot verify actual audio capture/transcription behavior without real microphone access."
+
+  - task: "Main UI - App Load and Panels"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Verify app loads correctly, not blank, and source/target panels render"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: App loads successfully on preview URL. Main heading 'TRANSLATOR' visible. Source panel (English) and target panel (Spanish) both render correctly with proper labels and input/output areas. All UI elements remain visible and functional throughout testing."
+
+metadata:
+  created_by: "testing_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: true
+
+test_plan:
+  current_focus:
+    - "Main UI - App Load and Panels"
+    - "Voice Input - Mic Button UI State"
+    - "Voice Input - Recording State Management"
+    - "Voice Input - Repeated Use Robustness"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "sequential"
+
+agent_communication:
+  - agent: "testing"
+    message: "Starting voice input bug fix testing on preview environment. Will test: 1) App loads correctly 2) Mic button present and clickable 3) Recording state changes 4) Repeated mic button interactions 5) No broken UI state. Note: Real microphone audio injection may not be feasible in automation, will focus on UI state behavior."
+  - agent: "testing"
+    message: "TESTING COMPLETE - All UI tests passed. App loads correctly, mic button is present and functional, handles permission denial gracefully, and remains responsive after repeated clicks. No broken state detected. Code improvements visible (isStartingRecordingRef, proper cleanup, MIN_RECORDING_DURATION_MS). LIMITATION: Cannot test actual audio recording/transcription without real microphone access in automation environment. The UI behavior and state management are working correctly."

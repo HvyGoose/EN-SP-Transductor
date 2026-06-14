@@ -32,6 +32,9 @@ STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
 
 # Premium pricing
 PREMIUM_PRICE = 4.99  # One-time payment for premium
+MIN_STT_AUDIO_BYTES = 1200
+VALID_STT_LANGUAGES = {"en", "es"}
+STT_PROMPT = "Short spoken English or Spanish phrase for a real-time translator app."
 
 # Create the main app
 app = FastAPI()
@@ -138,6 +141,12 @@ async def speech_to_text(audio: UploadFile = File(...), language: Optional[str] 
     try:
         # Read audio file
         audio_content = await audio.read()
+
+        if len(audio_content) < MIN_STT_AUDIO_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail="Audio too short. Hold the mic a little longer and try again."
+            )
         
         # Initialize STT
         stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
@@ -148,14 +157,27 @@ async def speech_to_text(audio: UploadFile = File(...), language: Optional[str] 
         audio_file.name = audio.filename or "audio.webm"
         
         # Transcribe
-        response = await stt.transcribe(
-            file=audio_file,
-            model="whisper-1",
-            response_format="json",
-            language=language
-        )
+        transcribe_kwargs = {
+            "file": audio_file,
+            "model": "whisper-1",
+            "response_format": "verbose_json",
+            "prompt": STT_PROMPT,
+            "temperature": 0.0
+        }
+
+        normalized_language = (language or "").lower()
+        if normalized_language in VALID_STT_LANGUAGES:
+            transcribe_kwargs["language"] = normalized_language
+
+        response = await stt.transcribe(**transcribe_kwargs)
+
+        transcript = response.text.strip()
+        if not transcript:
+            raise HTTPException(status_code=422, detail="No speech detected. Please try again.")
         
-        return {"text": response.text, "language": language}
+        return {"text": transcript, "language": normalized_language or language}
+    except HTTPException:
+        raise
         
     except Exception as e:
         logger.error(f"Speech-to-text error: {e}")

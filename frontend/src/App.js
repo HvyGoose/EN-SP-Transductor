@@ -32,6 +32,36 @@ const MIN_AUDIO_BLOB_SIZE = 5000;
 const TRANSLATION_DEBOUNCE_MS = 500;
 const COPY_FEEDBACK_DURATION = 2000;
 const HTTP_NOT_FOUND = 404;
+const VOICE_MIN_AUDIO_BLOB_SIZE = 1500;
+const MIN_RECORDING_DURATION_MS = 700;
+const RECORDER_CHUNK_MS = 250;
+const RECORDER_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+
+const getSupportedRecorderMimeType = () => {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+    return '';
+  }
+
+  return RECORDER_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type)) || '';
+};
+
+const createRecorder = (stream) => {
+  const mimeType = getSupportedRecorderMimeType();
+
+  return mimeType
+    ? new MediaRecorder(stream, { mimeType })
+    : new MediaRecorder(stream);
+};
+
+const stopMediaTracks = (stream) => {
+  if (!stream) {
+    return;
+  }
+
+  stream.getTracks().forEach((track) => track.stop());
+};
+
+const createConversationEntryId = () => `${crypto.randomUUID()}-${Math.round(performance.now())}`;
 
 function App() {
   // State
@@ -96,6 +126,11 @@ function App() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const audioRef = useRef(new Audio());
+  const recordingStreamRef = useRef(null);
+  const recordingStartedAtRef = useRef(0);
+  const stopRecordingTimeoutRef = useRef(null);
+  const skipNextDebounceRef = useRef(false);
+  const isStartingRecordingRef = useRef(false);
 
   const targetLang = sourceLang === "en" ? "es" : "en";
   const sourceLangName = sourceLang === "en" ? "English" : "Spanish";
@@ -351,6 +386,11 @@ function App() {
       clearTimeout(debounceRef.current);
     }
 
+    if (skipNextDebounceRef.current) {
+      skipNextDebounceRef.current = false;
+      return undefined;
+    }
+
     debounceRef.current = setTimeout(() => {
       translateText(sourceText);
     }, TRANSLATION_DEBOUNCE_MS);
@@ -388,13 +428,64 @@ function App() {
     }
   };
 
+  const submitVoiceRecording = useCallback(async (audioBlob) => {
+    if (audioBlob.size < VOICE_MIN_AUDIO_BLOB_SIZE) {
+      toast.error('We did not catch enough audio. Please hold the mic a bit longer.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
+    formData.append('language', sourceLang);
+
+    try {
+      setError(null);
+      const response = await axios.post(`${API}/speech-to-text`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const transcript = response.data.text?.trim() || '';
+
+      if (!transcript) {
+        toast.error('No speech was detected. Please try again.');
+        return;
+      }
+
+      skipNextDebounceRef.current = true;
+      setSourceText(transcript);
+      await translateText(transcript);
+      toast.success('Voice transcribed');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      if (typeof detail === 'string' && detail.length > 0) {
+        toast.error(detail);
+      } else {
+        toast.error('Voice recognition failed');
+      }
+    }
+  }, [sourceLang, translateText]);
+
   // Speech-to-text (Recording)
   const startRecording = async () => {
+    if (isRecording || isStartingRecordingRef.current) {
+      return;
+    }
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      isStartingRecordingRef.current = true;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1
+        }
+      });
+      recordingStreamRef.current = stream;
+      const mediaRecorder = createRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
+      recordingStartedAtRef.current = Date.now();
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -403,40 +494,72 @@ function App() {
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        stream.getTracks().forEach(track => track.stop());
-        
-        // Send to backend for transcription
-        const formData = new FormData();
-        formData.append('audio', audioBlob, 'recording.webm');
-        formData.append('language', sourceLang);
-
-        try {
-          const response = await axios.post(`${API}/speech-to-text`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
-          setSourceText(response.data.text);
-          toast.success("Voice transcribed");
-        } catch (err) {
-          // Error handled silently
-          toast.error("Voice recognition failed");
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: mediaRecorder.mimeType || 'audio/webm'
+        });
+        stopMediaTracks(stream);
+        if (recordingStreamRef.current === stream) {
+          recordingStreamRef.current = null;
         }
+        mediaRecorderRef.current = null;
+        audioChunksRef.current = [];
+        setIsRecording(false);
+        await submitVoiceRecording(audioBlob);
       };
 
-      mediaRecorder.start();
+      mediaRecorder.onerror = () => {
+        stopMediaTracks(stream);
+        if (recordingStreamRef.current === stream) {
+          recordingStreamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
+        audioChunksRef.current = [];
+        setIsRecording(false);
+        toast.error('Microphone recording failed');
+      };
+
+      mediaRecorder.start(RECORDER_CHUNK_MS);
+      isStartingRecordingRef.current = false;
       setIsRecording(true);
-      toast.info("Recording... Click again to stop");
+      toast.info('Listening... tap Stop when you are done speaking.');
     } catch (err) {
-      // Error handled silently
-      toast.error("Microphone access denied");
+      isStartingRecordingRef.current = false;
+      setIsRecording(false);
+      toast.error('Microphone access denied');
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+    const recorder = mediaRecorderRef.current;
+
+    if (!recorder || !isRecording || recorder.state !== 'recording') {
+      return;
     }
+
+    const stopRecorder = () => {
+      if (!mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') {
+        return;
+      }
+
+      try {
+        if (typeof mediaRecorderRef.current.requestData === 'function') {
+          mediaRecorderRef.current.requestData();
+        }
+      } catch (err) {
+        void err;
+      }
+
+      mediaRecorderRef.current.stop();
+    };
+
+    const elapsed = Date.now() - recordingStartedAtRef.current;
+    if (elapsed < MIN_RECORDING_DURATION_MS) {
+      const remaining = MIN_RECORDING_DURATION_MS - elapsed;
+      stopRecordingTimeoutRef.current = setTimeout(stopRecorder, remaining);
+      return;
+    }
+
+    stopRecorder();
   };
 
   const handleMicClick = () => {
@@ -712,10 +835,9 @@ function App() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (!response.data.skipped && response.data.original_text) {
         const entry = {
-          id: Date.now(),
+          id: createConversationEntryId(),
           detected: response.data.detected_language === 'es' ? 'Spanish' : 'English',
           original: response.data.original_text,
           translated: response.data.translated_text,
@@ -831,7 +953,7 @@ function App() {
         
         if (!response.data.skipped && response.data.original_text) {
           const entry = {
-            id: Date.now(),
+            id: createConversationEntryId(),
             detected: response.data.detected_language === 'es' ? 'Spanish' : 'English',
             original: response.data.original_text,
             translated: response.data.translated_text,
@@ -885,18 +1007,20 @@ function App() {
 
   // Cleanup on unmount
   useEffect(() => {
-    // Capture refs at effect creation time for cleanup
-    const streamRefCurrent = conversationStreamRef.current;
-    const timeoutRefCurrent = silenceTimeoutRef.current;
     return () => {
-      if (streamRefCurrent) {
-        streamRefCurrent.getTracks().forEach(track => track.stop());
+      if (conversationStreamRef.current) {
+        conversationStreamRef.current.getTracks().forEach(track => track.stop());
       }
-      if (timeoutRefCurrent) {
-        clearTimeout(timeoutRefCurrent);
+      if (recordingStreamRef.current) {
+        stopMediaTracks(recordingStreamRef.current);
+      }
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+      }
+      if (stopRecordingTimeoutRef.current) {
+        clearTimeout(stopRecordingTimeoutRef.current);
       }
     };
-    // Cleanup effect runs once on unmount, refs are stable
   }, []);
 
   // Text-to-speech
