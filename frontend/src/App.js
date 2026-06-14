@@ -125,6 +125,24 @@ function App() {
     return 'Ready';
   };
 
+  // Helper function to get hold-to-talk status text
+  const getHoldToTalkText = () => {
+    if (isListening) return 'Listening... Release to translate';
+    if (isProcessing) return 'Translating...';
+    return 'Hold to Talk';
+  };
+
+  // Helper function to render connection badge content
+  const renderConnectionBadge = () => {
+    if (offlineMode) {
+      return <><WifiSlash size={14} /> <span className="hidden sm:inline">Offline</span></>;
+    }
+    if (isOnline) {
+      return <><WifiHigh size={14} /> <span className="hidden sm:inline">Online</span></>;
+    }
+    return <><WifiSlash size={14} /> <span className="hidden sm:inline">No Connection</span></>;
+  };
+
   // Online/Offline detection
   useEffect(() => {
     const handleOnline = () => {
@@ -667,7 +685,6 @@ function App() {
     // Skip if peak audio level was too low (likely background noise, not real speech)
     const minPeakLevel = sensitivityRef.current * SENSITIVITY_MULTIPLIER; // Must be significantly above threshold
     if (peakAudioLevelRef.current < minPeakLevel) {
-      console.log(`Peak audio level ${peakAudioLevelRef.current} below min ${minPeakLevel} - skipping`);
       restartListening();
       return;
     }
@@ -987,7 +1004,7 @@ function App() {
                     <Microphone size={40} weight={isListening ? "fill" : "bold"} />
                   </button>
                   <p className="text-sm font-mono uppercase tracking-wider mt-4">
-                    {isListening ? 'Listening... Release to translate' : isProcessing ? 'Translating...' : 'Hold to Talk'}
+                    {getHoldToTalkText()}
                   </p>
                 </>
               ) : (
@@ -1270,13 +1287,7 @@ function App() {
           </h1>
           {/* Connection status */}
           <div className={`connection-badge ${isOnline ? 'online' : 'offline'} ${offlineMode ? 'offline-mode' : ''}`}>
-            {offlineMode ? (
-              <><WifiSlash size={14} /> <span className="hidden sm:inline">Offline</span></>
-            ) : isOnline ? (
-              <><WifiHigh size={14} /> <span className="hidden sm:inline">Online</span></>
-            ) : (
-              <><WifiSlash size={14} /> <span className="hidden sm:inline">No Connection</span></>
-            )}
+            {renderConnectionBadge()}
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
