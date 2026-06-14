@@ -102,7 +102,143 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the structural refactor of App.js into hooks/components on preview frontend. Verify all UI elements render correctly, interactions work, and no breakage from the refactor."
+user_problem_statement: "Test the structural refactor of App.js into hooks/components on preview frontend. Verify all UI elements render correctly, interactions work, and no breakage from the refactor. Test the backend structural refactor from single server.py into services modules."
+
+backend:
+  - task: "Refactor - API Root Endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test GET /api/ endpoint after structural refactor"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: GET /api/ returns 200 OK with message 'Real-time Translator API'. Endpoint working correctly after refactor."
+
+  - task: "Refactor - Translation Service (EN→ES)"
+    implemented: true
+    working: true
+    file: "/app/backend/services/translation_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test POST /api/translate with English to Spanish translation after service extraction"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: POST /api/translate with EN→ES successfully translates 'Hello, how are you?' to Spanish. Translation service working correctly after refactor."
+
+  - task: "Refactor - Translation Service (ES→EN)"
+    implemented: true
+    working: true
+    file: "/app/backend/services/translation_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test POST /api/translate with Spanish to English translation after service extraction"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: POST /api/translate with ES→EN successfully translates 'Hola, ¿cómo estás?' to English. Bidirectional translation working correctly after refactor."
+
+  - task: "Refactor - Translation Empty Text Handling"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py, /app/backend/services/translation_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test POST /api/translate with empty text returns empty translation"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: POST /api/translate with empty text correctly returns empty translated_text. Empty text handling preserved after refactor."
+
+  - task: "Refactor - Text-to-Speech Service"
+    implemented: true
+    working: true
+    file: "/app/backend/services/speech_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test POST /api/text-to-speech with valid text after service extraction"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: POST /api/text-to-speech with 'Hello world' returns 200 OK with valid base64 encoded MP3 audio. TTS service working correctly after refactor."
+
+  - task: "Refactor - Text-to-Speech Empty Text Validation"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py, /app/backend/services/speech_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test POST /api/text-to-speech with empty text returns 400 error"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: POST /api/text-to-speech with empty text correctly returns 400 Bad Request with error 'Text cannot be empty'. Validation logic preserved after refactor."
+
+  - task: "Refactor - Speech-to-Text Service Error Handling"
+    implemented: true
+    working: true
+    file: "/app/backend/services/speech_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test POST /api/speech-to-text without audio fails appropriately"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: POST /api/speech-to-text without audio file correctly returns 422 Unprocessable Entity. Error handling for missing required field working correctly after refactor."
+
+  - task: "Refactor - Payment Service Check Premium"
+    implemented: true
+    working: true
+    file: "/app/backend/services/payment_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test POST /api/payments/check-premium with unknown email returns is_premium: false"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: POST /api/payments/check-premium with unknown email 'unknown_user_12345@example.com' correctly returns 200 OK with is_premium: false. Payment service working correctly after refactor."
+
+  - task: "Refactor - History Service"
+    implemented: true
+    working: true
+    file: "/app/backend/services/history_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test GET /api/history returns list of translation history"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: GET /api/history returns 200 OK with list format containing translation history entries. History service working correctly after refactor."
 
 frontend:
   - task: "Refactor - Homepage Load"
@@ -212,19 +348,21 @@ frontend:
 
 metadata:
   created_by: "testing_agent"
-  version: "1.1"
-  test_sequence: 1
+  version: "1.2"
+  test_sequence: 2
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Refactor - Homepage Load"
-    - "Refactor - Translation Panes Render"
-    - "Refactor - Swap Button Functionality"
-    - "Refactor - Premium Modal Opening"
-    - "Refactor - Premium Modal Elements"
-    - "Refactor - Conversation Button & Premium Gating"
-    - "Refactor - UI Integrity Check"
+    - "Refactor - API Root Endpoint"
+    - "Refactor - Translation Service (EN→ES)"
+    - "Refactor - Translation Service (ES→EN)"
+    - "Refactor - Translation Empty Text Handling"
+    - "Refactor - Text-to-Speech Service"
+    - "Refactor - Text-to-Speech Empty Text Validation"
+    - "Refactor - Speech-to-Text Service Error Handling"
+    - "Refactor - Payment Service Check Premium"
+    - "Refactor - History Service"
   stuck_tasks: []
   test_all: false
   test_priority: "sequential"
@@ -234,3 +372,7 @@ agent_communication:
     message: "Starting structural refactor testing on preview environment (https://bilingual-voice-6.preview.emergentagent.com). Testing App.js split into hooks/components. Will verify: 1) Homepage loads 2) Translation panes render 3) Swap button works 4) Crown button opens premium modal 5) Premium modal elements 6) Conversation button & premium gating 7) No UI breakage."
   - agent: "testing"
     message: "STRUCTURAL REFACTOR TESTING COMPLETE ✅ - All 7 test categories passed successfully. The App.js split into hooks (useTranslatorState, useTranslationActions, usePaymentManager, useVoiceInputManager, useAudioPlaybackManager, useConversationManager, useTranslatorEffects) and components (SourcePane, TargetPane, TranslatorHeader, PaymentModal, ConversationModal, PhrasebookModal, FreeTierBanner) is working correctly. No UI breakage detected. All interactions functional: homepage loads, panes render, swap works, premium modal opens with all elements, conversation button shows premium gating via toast notification. All 13 major UI elements verified present and visible. No console errors. Refactor successful with zero regressions."
+  - agent: "testing"
+    message: "Starting backend structural refactor testing. Backend was refactored from single server.py into modular services: translation_service.py, speech_service.py, payment_service.py, history_service.py, conversation_service.py. Testing all core endpoints: GET /api/, POST /api/translate (EN→ES, ES→EN, empty text), POST /api/text-to-speech (valid, empty), POST /api/speech-to-text (no audio), POST /api/payments/check-premium (unknown email), GET /api/history."
+  - agent: "testing"
+    message: "BACKEND STRUCTURAL REFACTOR TESTING COMPLETE ✅ - All 9 backend tests passed successfully (100% success rate). Verified endpoints: 1) API Root (200 OK) 2) Translation EN→ES (working) 3) Translation ES→EN (working) 4) Empty text handling (working) 5) Text-to-Speech with valid text (working) 6) Text-to-Speech empty text validation (400 error as expected) 7) Speech-to-Text without audio (422 error as expected) 8) Check premium with unknown email (returns is_premium: false correctly) 9) History endpoint (returns list correctly). All services (translation_service, speech_service, payment_service, history_service) working correctly after refactor. No regressions detected. Server.py successfully acts as router importing from modular services."

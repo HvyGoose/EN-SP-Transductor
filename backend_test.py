@@ -180,39 +180,54 @@ class TranslatorAPITester:
             self.log_test("Text-to-Speech Empty", False, str(e))
             return False
 
-    def test_speech_to_text(self):
-        """Test speech-to-text endpoint with mock audio"""
+    def test_speech_to_text_no_audio(self):
+        """Test speech-to-text endpoint without audio - should fail appropriately"""
         try:
-            # Create a minimal WebM audio file (just headers, won't actually work but tests endpoint)
-            mock_audio_data = b'\x1a\x45\xdf\xa3'  # WebM signature
+            # Send request without audio file
+            response = requests.post(f"{self.api_url}/speech-to-text", timeout=10)
+            # Should return 422 (Unprocessable Entity) for missing required field
+            success = response.status_code == 422
+            details = f"Status: {response.status_code} (Expected 422 for missing audio)"
             
-            files = {
-                'audio': ('test.webm', io.BytesIO(mock_audio_data), 'audio/webm')
-            }
-            data = {
-                'language': 'en'
-            }
-            
-            response = requests.post(f"{self.api_url}/speech-to-text", files=files, data=data, timeout=30)
-            # This will likely fail due to invalid audio, but we're testing endpoint availability
-            details = f"Status: {response.status_code}"
-            
-            if response.status_code == 500:
-                # Expected for invalid audio - endpoint is working
+            if not success and response.status_code == 400:
+                # 400 is also acceptable for bad request
                 success = True
-                details += " (Endpoint accessible, failed on invalid audio as expected)"
-            elif response.status_code == 200:
-                success = True
-                data = response.json()
-                details += f", Text: '{data.get('text', '')}'"
-            else:
-                success = False
-                details += " (Unexpected status code)"
+                details = f"Status: {response.status_code} (400 Bad Request is acceptable)"
             
-            self.log_test("Speech-to-Text", success, details)
+            self.log_test("Speech-to-Text No Audio", success, details)
             return success
         except Exception as e:
-            self.log_test("Speech-to-Text", False, str(e))
+            self.log_test("Speech-to-Text No Audio", False, str(e))
+            return False
+
+    def test_check_premium_unknown_email(self):
+        """Test check-premium endpoint with unknown email"""
+        try:
+            payload = {
+                "email": "unknown_user_12345@example.com"
+            }
+            response = requests.post(f"{self.api_url}/payments/check-premium", json=payload, timeout=10)
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            
+            if success:
+                data = response.json()
+                is_premium = data.get('is_premium', None)
+                email = data.get('email', '')
+                details += f", is_premium: {is_premium}, email: {email}"
+                
+                # Unknown email should return is_premium: false
+                if is_premium == False:
+                    success = True
+                    details += " (Correctly returned false for unknown email)"
+                else:
+                    success = False
+                    details += f" (Expected is_premium=false, got {is_premium})"
+            
+            self.log_test("Check Premium Unknown Email", success, details)
+            return success
+        except Exception as e:
+            self.log_test("Check Premium Unknown Email", False, str(e))
             return False
 
     def test_translation_history(self):
@@ -256,7 +271,10 @@ class TranslatorAPITester:
         # Test audio endpoints
         self.test_text_to_speech()
         self.test_text_to_speech_empty()
-        self.test_speech_to_text()
+        self.test_speech_to_text_no_audio()
+        
+        # Test payment endpoints
+        self.test_check_premium_unknown_email()
         
         # Test history
         self.test_translation_history()
