@@ -60,6 +60,13 @@ Build a quick English to Spanish real-time translator with:
 - ✅ Preserved translation, speech, payment, premium gating, and history flows after refactor
 - ✅ Regression-tested preview successfully across frontend and backend after refactor
 
+### Jun 2026 - Code Review Follow-up Fixes
+- ✅ Reduced React hook dependency pressure using stable latest-value refs and smaller hook boundaries
+- ✅ Split conversation logic into `useConversationActions`, `useConversationEffects`, and `useConversationValidation`
+- ✅ Split `ConversationModal` and `PaymentSuccess` into smaller focused UI pieces
+- ✅ Added Python type hints across backend service files and reduced high-complexity helpers
+- ✅ Re-tested after code-review fixes: frontend/backend passed again with no regressions
+
 ### Jan 2026 - MVP & Features
 - ✅ GPT-5.2 powered translation API
 - ✅ Whisper speech-to-text API
