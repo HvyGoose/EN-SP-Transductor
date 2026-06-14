@@ -73,6 +73,12 @@ Build a quick English to Spanish real-time translator with:
 - ✅ Added refund policy wording (case-by-case) and payment-related legal notice near checkout
 - ✅ Tested legal routes and legal-link flow successfully in preview
 
+### Jun 2026 - Store Submission Prep
+- ✅ Prepared Microsoft Store submission pack copy and checklist
+- ✅ Prepared Google Play submission pack copy and checklist
+- ✅ Generated glossy royal-blue / gold-crown app icon asset for store branding
+- ✅ Saved store submission materials to `/app/memory/STORE_SUBMISSION_PACK.md`
+
 ### Jan 2026 - MVP & Features
 - ✅ GPT-5.2 powered translation API
 - ✅ Whisper speech-to-text API
@@ -148,8 +154,8 @@ Build a quick English to Spanish real-time translator with:
 1. Redeploy latest preview build to production so legal pages/links are live
 2. Submit to Microsoft Store (PWABuilder)
 3. Submit to Google Play (TWA wrapper)
-4. Optionally add cross-links between legal pages for easier navigation
-5. Optionally add a lightweight diagnostics panel for future mic troubleshooting
+4. Capture final store screenshots and feature graphic assets
+5. Optionally add cross-links between legal pages and a lightweight diagnostics panel
 
 ## Future Enhancements
 - Build native iOS/Android app via Mobile Agent for Option 3 full offline
