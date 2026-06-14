@@ -39,6 +39,14 @@ Build a quick English to Spanish real-time translator with:
 
 ## What's Been Implemented
 
+### Jun 2026 - Voice Input Reliability Fix
+- ✅ Hardened one-tap voice capture flow for short spoken phrases in Chrome
+- ✅ Added safer MediaRecorder MIME fallback selection for browser compatibility
+- ✅ Added minimum recording duration guard to reduce clipped first-word captures
+- ✅ Added immediate post-transcription translation instead of relying only on debounce timing
+- ✅ Added microphone stream cleanup and repeat-use recorder reset to prevent stuck follow-up attempts
+- ✅ Added clearer backend speech-to-text validation for very short / empty audio uploads
+
 ### Jan 2026 - MVP & Features
 - ✅ GPT-5.2 powered translation API
 - ✅ Whisper speech-to-text API
@@ -111,11 +119,11 @@ Build a quick English to Spanish real-time translator with:
 - P2: Native mobile app via Mobile Agent for full offline AI
 
 ## Next Tasks
-1. Complete Stripe account setup (user in progress)
-2. Switch Stripe test keys to live keys when account approved
-3. Deploy to production
-4. Submit to Microsoft Store (PWABuilder)
-5. Submit to Google Play (TWA wrapper)
+1. Redeploy latest preview voice-input fix to production
+2. Manually verify Chrome mic flow in production with a full short phrase
+3. Submit to Microsoft Store (PWABuilder)
+4. Submit to Google Play (TWA wrapper)
+5. Add legal pages (Privacy Policy / Terms) for sales readiness
 
 ## Future Enhancements
 - Build native iOS/Android app via Mobile Agent for Option 3 full offline
