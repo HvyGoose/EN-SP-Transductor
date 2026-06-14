@@ -23,6 +23,16 @@ import { offlineTranslator, offlineSpeechSynthesis } from "@/services/offlineSer
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Constants
+const AUDIO_FFT_SIZE = 512;
+const DEFAULT_SILENCE_DURATION = 2; // seconds
+const DEFAULT_SENSITIVITY = 25; // noise threshold
+const SENSITIVITY_MULTIPLIER = 1.5;
+const MIN_AUDIO_BLOB_SIZE = 5000;
+const TRANSLATION_DEBOUNCE_MS = 500;
+const COPY_FEEDBACK_DURATION = 2000;
+const HTTP_NOT_FOUND = 404;
+
 function App() {
   // State
   const [sourceText, setSourceText] = useState("");
@@ -61,11 +71,11 @@ function App() {
   const [handsFreeMode, setHandsFreeMode] = useState(false);
   const [handsFreeStatus, setHandsFreeStatus] = useState('waiting'); // 'waiting', 'listening', 'recording', 'processing'
   const [audioLevel, setAudioLevel] = useState(0);
-  const [silenceDuration, setSilenceDuration] = useState(2); // Default 2 seconds
-  const [sensitivity, setSensitivity] = useState(25); // Default threshold (higher = less sensitive)
+  const [silenceDuration, setSilenceDuration] = useState(DEFAULT_SILENCE_DURATION);
+  const [sensitivity, setSensitivity] = useState(DEFAULT_SENSITIVITY);
   const [peakAudioLevel, setPeakAudioLevel] = useState(0); // Track peak level during recording
-  const silenceDurationRef = useRef(2);
-  const sensitivityRef = useRef(25);
+  const silenceDurationRef = useRef(DEFAULT_SILENCE_DURATION);
+  const sensitivityRef = useRef(DEFAULT_SENSITIVITY);
   const peakAudioLevelRef = useRef(0);
   const conversationRecorderRef = useRef(null);
   const conversationStreamRef = useRef(null);
@@ -90,6 +100,30 @@ function App() {
   const targetLang = sourceLang === "en" ? "es" : "en";
   const sourceLangName = sourceLang === "en" ? "English" : "Spanish";
   const targetLangName = targetLang === "en" ? "English" : "Spanish";
+
+  // Helper function to get sensitivity label
+  const getSensitivityLabel = (value) => {
+    if (value < 20) return 'Low';
+    if (value < 35) return 'Medium';
+    if (value < 50) return 'High';
+    return 'Max';
+  };
+
+  // Helper function to get conversation button class
+  const getConversationButtonClass = () => {
+    const baseClass = 'swiss-btn flex items-center gap-2 px-3 py-2 border text-sm font-mono uppercase tracking-wider';
+    if (conversationMode) return `${baseClass} bg-black text-white border-black`;
+    if (isPremium) return `${baseClass} border-black`;
+    return `${baseClass} border-gray-400 text-gray-600`;
+  };
+
+  // Helper function to get status text
+  const getStatusText = () => {
+    if (error) return 'Error';
+    if (isTranslating) return 'Translating';
+    if (offlineMode) return 'Offline';
+    return 'Ready';
+  };
 
   // Online/Offline detection
   useEffect(() => {
@@ -287,7 +321,7 @@ function App() {
 
     debounceRef.current = setTimeout(() => {
       translateText(sourceText);
-    }, 500);
+    }, TRANSLATION_DEBOUNCE_MS);
 
     return () => {
       if (debounceRef.current) {
@@ -316,7 +350,7 @@ function App() {
       await navigator.clipboard.writeText(translatedText);
       setCopied(true);
       toast.success("Copied to clipboard");
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION);
     } catch (err) {
       toast.error("Failed to copy");
     }
@@ -487,7 +521,7 @@ function App() {
       audioContextRef.current = audioContext;
       
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 512;
+      analyser.fftSize = AUDIO_FFT_SIZE;
       analyser.smoothingTimeConstant = 0.8;
       analyserRef.current = analyser;
       
@@ -565,7 +599,7 @@ function App() {
         sum += dataArray[i];
       }
       const average = sum / dataArray.length;
-      const normalizedLevel = Math.min(100, average * 1.5);
+      const normalizedLevel = Math.min(100, average * SENSITIVITY_MULTIPLIER);
       setAudioLevel(normalizedLevel);
       
       const SPEECH_THRESHOLD = sensitivityRef.current; // Use user setting
@@ -625,13 +659,13 @@ function App() {
     const audioBlob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
     
     // Skip if too small (likely just noise)
-    if (audioBlob.size < 5000) {
+    if (audioBlob.size < MIN_AUDIO_BLOB_SIZE) {
       restartListening();
       return;
     }
     
     // Skip if peak audio level was too low (likely background noise, not real speech)
-    const minPeakLevel = sensitivityRef.current * 1.5; // Must be significantly above threshold
+    const minPeakLevel = sensitivityRef.current * SENSITIVITY_MULTIPLIER; // Must be significantly above threshold
     if (peakAudioLevelRef.current < minPeakLevel) {
       console.log(`Peak audio level ${peakAudioLevelRef.current} below min ${minPeakLevel} - skipping`);
       restartListening();
@@ -1002,7 +1036,7 @@ function App() {
                   {/* Sensitivity setting */}
                   <div className="silence-setting">
                     <label className="text-xs font-mono uppercase tracking-wider text-gray-600">
-                      Noise Filter: {sensitivity < 20 ? 'Low' : sensitivity < 35 ? 'Medium' : sensitivity < 50 ? 'High' : 'Max'}
+                      Noise Filter: {getSensitivityLabel(sensitivity)}
                     </label>
                     <input
                       type="range"
@@ -1290,7 +1324,7 @@ function App() {
           </a>
           <button
             data-testid="conversation-mode-btn"
-            className={`swiss-btn flex items-center gap-2 px-3 py-2 border text-sm font-mono uppercase tracking-wider ${conversationMode ? 'bg-black text-white border-black' : isPremium ? 'border-black' : 'border-gray-400 text-gray-600'}`}
+            className={getConversationButtonClass()}
             onClick={handleConversationClick}
             title={isPremium ? "Conversation Mode" : "Premium Feature - Upgrade to unlock"}
           >
@@ -1301,7 +1335,7 @@ function App() {
           <div className="flex items-center gap-2">
             <div className={`status-dot ${error ? 'error' : isTranslating ? 'loading' : ''}`} />
             <span className="text-xs font-mono uppercase tracking-wider hidden sm:inline">
-              {error ? 'Error' : isTranslating ? 'Translating' : offlineMode ? 'Offline' : 'Ready'}
+              {getStatusText()}
             </span>
           </div>
         </div>

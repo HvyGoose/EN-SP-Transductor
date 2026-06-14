@@ -1,10 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Check, X, Spinner } from '@phosphor-icons/react';
+import { Check, X } from '@phosphor-icons/react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Constants
+const HTTP_NOT_FOUND = 404;
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_ATTEMPTS = 10;
+const MAX_ERROR_RETRIES = 5;
 
 function PaymentSuccess() {
   const [searchParams] = useSearchParams();
@@ -31,21 +37,21 @@ function PaymentSuccess() {
           localStorage.setItem('translator_session_id', sessionId);
         } else if (response.data.status === 'expired') {
           setStatus('failed');
-        } else if (attempts < 10) {
+        } else if (attempts < MAX_POLL_ATTEMPTS) {
           // Keep polling
-          setTimeout(() => setAttempts(a => a + 1), 2000);
+          setTimeout(() => setAttempts(a => a + 1), POLL_INTERVAL_MS);
         } else {
           setStatus('failed');
         }
       } catch (err) {
         // If 404, the session doesn't exist - fail immediately
-        if (err.response && err.response.status === 404) {
+        if (err.response && err.response.status === HTTP_NOT_FOUND) {
           setStatus('failed');
           return;
         }
         // For other errors, retry a few times
-        if (attempts < 5) {
-          setTimeout(() => setAttempts(a => a + 1), 2000);
+        if (attempts < MAX_ERROR_RETRIES) {
+          setTimeout(() => setAttempts(a => a + 1), POLL_INTERVAL_MS);
         } else {
           setStatus('failed');
         }
