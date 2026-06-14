@@ -27,10 +27,8 @@ class OfflineTranslator {
       });
       
       this.isLoaded = true;
-      console.log('Phrasebook loaded:', Object.keys(this.phraseIndex.en).length, 'phrases');
       return true;
     } catch (err) {
-      console.error('Failed to load phrasebook:', err);
       return false;
     }
   }

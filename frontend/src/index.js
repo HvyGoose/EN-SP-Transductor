@@ -5,15 +5,21 @@ import "@/index.css";
 import App from "@/App";
 import PaymentSuccess from "@/PaymentSuccess";
 
+// Suppress console in production
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {};
+  console.debug = () => {};
+}
+
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js')
-      .then((registration) => {
-        console.log('ServiceWorker registered: ', registration.scope);
+      .then(() => {
+        // ServiceWorker registered successfully
       })
-      .catch((error) => {
-        console.log('ServiceWorker registration failed: ', error);
+      .catch(() => {
+        // ServiceWorker registration failed
       });
   });
 }

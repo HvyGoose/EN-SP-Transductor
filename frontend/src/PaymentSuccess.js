@@ -38,7 +38,6 @@ function PaymentSuccess() {
           setStatus('failed');
         }
       } catch (err) {
-        console.error('Payment status check failed:', err);
         // If 404, the session doesn't exist - fail immediately
         if (err.response && err.response.status === 404) {
           setStatus('failed');

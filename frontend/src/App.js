@@ -574,7 +574,6 @@ function App() {
       if (average > SPEECH_THRESHOLD) {
         // Speech detected
         if (!isSpeakingRef.current) {
-          console.log("Speech started, level:", average);
           isSpeakingRef.current = true;
           peakAudioLevelRef.current = average; // Reset peak
           setHandsFreeStatus('recording');
@@ -591,11 +590,9 @@ function App() {
           // Was speaking, now silent
           if (!silenceStartRef.current) {
             silenceStartRef.current = Date.now();
-            console.log("Silence started");
           } else {
             const silenceDuration = Date.now() - silenceStartRef.current;
             if (silenceDuration >= SILENCE_DURATION) {
-              console.log("Silence threshold reached, processing...");
               isSpeakingRef.current = false;
               silenceStartRef.current = null;
               setHandsFreeStatus('processing');
@@ -619,8 +616,6 @@ function App() {
 
   // Process the recorded audio
   const processRecordedAudio = async () => {
-    console.log("Processing recorded audio, chunks:", recordingChunksRef.current.length);
-    console.log("Peak audio level during recording:", peakAudioLevelRef.current);
     
     if (recordingChunksRef.current.length === 0) {
       restartListening();
@@ -628,11 +623,9 @@ function App() {
     }
     
     const audioBlob = new Blob(recordingChunksRef.current, { type: 'audio/webm' });
-    console.log("Audio blob size:", audioBlob.size);
     
     // Skip if too small (likely just noise)
     if (audioBlob.size < 5000) {
-      console.log("Audio too small, skipping");
       restartListening();
       return;
     }
@@ -654,7 +647,6 @@ function App() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      console.log("Translation response:", response.data);
       
       if (!response.data.skipped && response.data.original_text) {
         const entry = {
@@ -685,8 +677,6 @@ function App() {
           await audio.play();
           return;
         }
-      } else {
-        console.log("No translation (skipped or empty)");
       }
       
       restartListening();
