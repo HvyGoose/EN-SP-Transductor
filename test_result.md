@@ -102,10 +102,10 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the voice-input bug fix on preview frontend. The production bug was that voice input captured only part of a phrase once, then later attempts produced no translation."
+user_problem_statement: "Test the structural refactor of App.js into hooks/components on preview frontend. Verify all UI elements render correctly, interactions work, and no breakage from the refactor."
 
 frontend:
-  - task: "Voice Input - Mic Button UI State"
+  - task: "Refactor - Homepage Load"
     implemented: true
     working: true
     file: "/app/frontend/src/App.js"
@@ -115,74 +115,122 @@ frontend:
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Initial test - need to verify mic button presence, click behavior, and state changes"
+        comment: "Test that homepage loads and is not blank after structural refactor"
       - working: true
         agent: "testing"
-        comment: "TESTED: Mic button (data-testid='mic-button') is present, visible, enabled, and clickable. Button correctly handles permission denial by showing error toast and remaining in idle state. Button remains responsive after multiple clicks. No broken UI state detected."
+        comment: "TESTED: Homepage loads successfully at preview URL. App container (data-testid='translator-app') renders correctly. Page has substantial content (>1000 chars). No blank page issues detected."
 
-  - task: "Voice Input - Recording State Management"
+  - task: "Refactor - Translation Panes Render"
     implemented: true
     working: true
-    file: "/app/frontend/src/App.js"
+    file: "/app/frontend/src/components/translator/SourcePane.jsx, /app/frontend/src/components/translator/TargetPane.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Need to verify recording state toggles correctly and no broken state after repeated interactions"
+        comment: "Verify source and target translation panes render correctly after component split"
       - working: true
         agent: "testing"
-        comment: "TESTED: Recording state management works correctly. When microphone permission is denied, the button correctly stays in idle state (does not falsely show recording). Error handling is proper with toast notification. Code includes isStartingRecordingRef to prevent double-clicks and proper cleanup of streams. LIMITATION: Cannot test actual recording state with real microphone in automation."
+        comment: "TESTED: Both panes render correctly. Source pane shows 'ENGLISH' label with visible textarea input. Target pane shows 'SPANISH' label with visible output area. All pane elements properly displayed."
 
-  - task: "Voice Input - Repeated Use Robustness"
+  - task: "Refactor - Swap Button Functionality"
     implemented: true
     working: true
-    file: "/app/frontend/src/App.js"
+    file: "/app/frontend/src/components/translator/SourcePane.jsx, /app/frontend/src/hooks/useTranslationActions.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Critical test - verify the bug fix that voice input works correctly on repeated attempts without broken state"
+        comment: "Test swap button works correctly after refactor"
       - working: true
         agent: "testing"
-        comment: "TESTED: Button remains fully functional after 7+ repeated clicks. No broken state, no console errors, no UI freezing. Button stays enabled and responsive throughout. Code improvements visible: isStartingRecordingRef prevents race conditions, proper stream cleanup in stopMediaTracks, MIN_RECORDING_DURATION_MS ensures minimum recording time. LIMITATION: Cannot verify actual audio capture/transcription behavior without real microphone access."
+        comment: "TESTED: Swap button (data-testid='swap-languages-button-desktop') works correctly. Initial state: Source=ENGLISH, Target=SPANISH. After swap: Source=SPANISH, Target=ENGLISH. Language swap functionality intact after refactor."
 
-  - task: "Main UI - App Load and Panels"
+  - task: "Refactor - Premium Modal Opening"
     implemented: true
     working: true
-    file: "/app/frontend/src/App.js"
+    file: "/app/frontend/src/components/translator/TranslatorHeader.jsx, /app/frontend/src/components/translator/PaymentModal.jsx"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Verify app loads correctly, not blank, and source/target panels render"
+        comment: "Verify crown button opens premium modal after component split"
       - working: true
         agent: "testing"
-        comment: "TESTED: App loads successfully on preview URL. Main heading 'TRANSLATOR' visible. Source panel (English) and target panel (Spanish) both render correctly with proper labels and input/output areas. All UI elements remain visible and functional throughout testing."
+        comment: "TESTED: Crown button (data-testid='premium-btn') successfully opens premium modal. Modal overlay (data-testid='payment-modal-overlay') appears and is visible. Modal opening functionality works correctly."
+
+  - task: "Refactor - Premium Modal Elements"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/translator/PaymentModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Verify premium modal shows all required elements (email input, checkout button, restore button)"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: All modal elements present and visible. Email input (data-testid='payment-email-input') visible. Checkout button (data-testid='checkout-btn') visible with text 'PURCHASE PREMIUM - $4.99'. Restore button (data-testid='restore-btn') visible with text 'RESTORE PREVIOUS PURCHASE'. Premium feature list (data-testid='premium-feature-list') visible. Modal close button works correctly."
+
+  - task: "Refactor - Conversation Button & Premium Gating"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/translator/TranslatorHeader.jsx, /app/frontend/src/hooks/useConversationManager.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Verify conversation button renders and premium gating works for non-premium users"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Conversation button (data-testid='conversation-mode-btn') renders correctly and is visible. Button displays crown icon indicating premium feature. Premium gating works correctly - clicking button as non-premium user shows toast notification: 'Conversation Mode is Premium - Auto-detect language & hands-free translation [Unlock Premium - $4.99]'. Gating mechanism intact after refactor."
+
+  - task: "Refactor - UI Integrity Check"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js, /app/frontend/src/components/translator/*.jsx, /app/frontend/src/hooks/*.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Comprehensive check for UI breakage from App.js split into hooks/components"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: No visible UI breakage detected. All 13 major UI elements verified present and visible: app container, source/target labels, source input, target output, mic button, speaker buttons (source/target), copy button, premium button, phrasebook button, conversation button, status indicator. Source input accepts text correctly ('Hello world' test). No console errors detected. All interactions functional. Structural refactor successful with no UI regressions."
 
 metadata:
   created_by: "testing_agent"
-  version: "1.0"
-  test_sequence: 0
+  version: "1.1"
+  test_sequence: 1
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Main UI - App Load and Panels"
-    - "Voice Input - Mic Button UI State"
-    - "Voice Input - Recording State Management"
-    - "Voice Input - Repeated Use Robustness"
+    - "Refactor - Homepage Load"
+    - "Refactor - Translation Panes Render"
+    - "Refactor - Swap Button Functionality"
+    - "Refactor - Premium Modal Opening"
+    - "Refactor - Premium Modal Elements"
+    - "Refactor - Conversation Button & Premium Gating"
+    - "Refactor - UI Integrity Check"
   stuck_tasks: []
   test_all: false
   test_priority: "sequential"
 
 agent_communication:
   - agent: "testing"
-    message: "Starting voice input bug fix testing on preview environment. Will test: 1) App loads correctly 2) Mic button present and clickable 3) Recording state changes 4) Repeated mic button interactions 5) No broken UI state. Note: Real microphone audio injection may not be feasible in automation, will focus on UI state behavior."
+    message: "Starting structural refactor testing on preview environment (https://bilingual-voice-6.preview.emergentagent.com). Testing App.js split into hooks/components. Will verify: 1) Homepage loads 2) Translation panes render 3) Swap button works 4) Crown button opens premium modal 5) Premium modal elements 6) Conversation button & premium gating 7) No UI breakage."
   - agent: "testing"
-    message: "TESTING COMPLETE - All UI tests passed. App loads correctly, mic button is present and functional, handles permission denial gracefully, and remains responsive after repeated clicks. No broken state detected. Code improvements visible (isStartingRecordingRef, proper cleanup, MIN_RECORDING_DURATION_MS). LIMITATION: Cannot test actual audio recording/transcription without real microphone access in automation environment. The UI behavior and state management are working correctly."
+    message: "STRUCTURAL REFACTOR TESTING COMPLETE ✅ - All 7 test categories passed successfully. The App.js split into hooks (useTranslatorState, useTranslationActions, usePaymentManager, useVoiceInputManager, useAudioPlaybackManager, useConversationManager, useTranslatorEffects) and components (SourcePane, TargetPane, TranslatorHeader, PaymentModal, ConversationModal, PhrasebookModal, FreeTierBanner) is working correctly. No UI breakage detected. All interactions functional: homepage loads, panes render, swap works, premium modal opens with all elements, conversation button shows premium gating via toast notification. All 13 major UI elements verified present and visible. No console errors. Refactor successful with zero regressions."

@@ -427,8 +427,9 @@ export const useConversationManager = ({ refs, setters, state }) => {
   monitorAudioLevelRef.current = monitorAudioLevel;
 
   useEffect(() => () => {
-    if (conversationStreamRef.current) {
-      stopMediaTracks(conversationStreamRef.current);
+    const stream = conversationStreamRef.current;
+    if (stream) {
+      stopMediaTracks(stream);
     }
   }, [conversationStreamRef]);
 
