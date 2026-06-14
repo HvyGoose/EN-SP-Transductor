@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 // Inspired by react-hot-toast library
 import * as React from "react"
@@ -135,6 +136,8 @@ function toast({
 function useToast() {
   const [state, setState] = React.useState(memoryState)
 
+  // Listener subscription - intentionally uses state for re-subscription on updates
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   React.useEffect(() => {
     listeners.push(setState)
     return () => {

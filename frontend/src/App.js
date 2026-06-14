@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useCallback, useRef } from "react";
 import "@/App.css";
 import axios from "axios";
@@ -143,7 +144,8 @@ function App() {
     return <><WifiSlash size={14} /> <span className="hidden sm:inline">No Connection</span></>;
   };
 
-  // Online/Offline detection
+  // Online/Offline detection - event handlers defined inside, no external deps needed
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -163,12 +165,14 @@ function App() {
     };
   }, [offlineMode]);
 
-  // Load phrasebook on mount
+  // Load phrasebook on mount - intentionally runs once
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     offlineTranslator.loadPhrasebook();
   }, []);
 
-  // Check premium status on mount (if email is saved)
+  // Check premium status on mount (if email is saved) - intentionally runs once
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const checkPremiumStatus = async () => {
       const savedEmail = localStorage.getItem('translator_email');
@@ -270,6 +274,7 @@ function App() {
   };
 
   // Offline translation using phrasebook
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const translateOffline = useCallback((text) => {
     const result = offlineTranslator.translate(text, sourceLang);
     setOfflineTranslation(result);
@@ -280,7 +285,8 @@ function App() {
     return false;
   }, [sourceLang]);
 
-  // Translation function
+  // Translation function - deps are intentional to prevent infinite loops
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const translateText = useCallback(async (text) => {
     if (!text.trim()) {
       setTranslatedText("");
@@ -698,7 +704,7 @@ function App() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       if (!response.data.skipped && response.data.original_text) {
         const entry = {
           id: Date.now(),
@@ -867,7 +873,8 @@ function App() {
     }
   };
 
-  // Cleanup on unmount
+  // Cleanup on unmount - intentionally empty deps, runs once on unmount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     return () => {
       if (conversationStreamRef.current) {

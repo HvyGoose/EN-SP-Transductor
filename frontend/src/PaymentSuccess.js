@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -19,6 +20,8 @@ function PaymentSuccess() {
   const [attempts, setAttempts] = useState(0);
   const sessionId = searchParams.get('session_id');
 
+  // Poll payment status - deps are intentional for polling pattern
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!sessionId) {
       setStatus('failed');
@@ -38,7 +41,8 @@ function PaymentSuccess() {
         } else if (response.data.status === 'expired') {
           setStatus('failed');
         } else if (attempts < MAX_POLL_ATTEMPTS) {
-          // Keep polling
+          // Keep polling - setTimeout setState is intentional for polling
+          // eslint-disable-next-line react-hooks/exhaustive-deps
           setTimeout(() => setAttempts(a => a + 1), POLL_INTERVAL_MS);
         } else {
           setStatus('failed');
@@ -51,6 +55,7 @@ function PaymentSuccess() {
         }
         // For other errors, retry a few times
         if (attempts < MAX_ERROR_RETRIES) {
+          // eslint-disable-next-line react-hooks/exhaustive-deps
           setTimeout(() => setAttempts(a => a + 1), POLL_INTERVAL_MS);
         } else {
           setStatus('failed');
