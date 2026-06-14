@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the structural refactor of App.js into hooks/components on preview frontend. Verify all UI elements render correctly, interactions work, and no breakage from the refactor. Test the backend structural refactor from single server.py into services modules."
+user_problem_statement: "Test the newly added legal documentation flow on preview frontend. Verify: 1) Home page loads correctly 2) Header shows visible legal links for Privacy Policy and Terms of Service 3) Footer shows legal/support text and links 4) Clicking Privacy Policy opens /privacy route and content renders 5) Clicking Terms of Service opens /terms route and content renders 6) Premium modal still opens from crown button 7) Premium modal includes legal links / checkout-related legal copy 8) No visible layout breakage from these additions."
 
 backend:
   - task: "Refactor - API Root Endpoint"
@@ -241,7 +241,7 @@ backend:
         comment: "TESTED: GET /api/history returns 200 OK with list format containing translation history entries. History service working correctly after refactor."
 
 frontend:
-  - task: "Refactor - Homepage Load"
+  - task: "Legal Documentation - Homepage Load"
     implemented: true
     working: true
     file: "/app/frontend/src/App.js"
@@ -251,10 +251,115 @@ frontend:
     status_history:
       - working: "NA"
         agent: "testing"
-        comment: "Test that homepage loads and is not blank after structural refactor"
+        comment: "Test that homepage loads correctly with legal documentation additions"
       - working: true
         agent: "testing"
-        comment: "TESTED: Homepage loads successfully at preview URL. App container (data-testid='translator-app') renders correctly. Page has substantial content (>1000 chars). No blank page issues detected."
+        comment: "TESTED: Homepage loads successfully at preview URL. App container (data-testid='translator-app') renders correctly. Page content length: 187,693 characters. No blank page or layout breakage detected after legal documentation additions."
+
+  - task: "Legal Documentation - Header Legal Links"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/translator/TranslatorHeader.jsx, /app/frontend/src/components/legal/LegalLinkGroup.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Verify header shows visible legal links for Privacy Policy and Terms of Service"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Header legal link group (data-testid='legal-link-group') found and visible in header-meta-group. Privacy Policy link (data-testid='privacy-link') displays 'PRIVACY POLICY' and is visible. Terms of Service link (data-testid='terms-link') displays 'TERMS OF SERVICE' and is visible. Both links properly integrated into header."
+
+  - task: "Legal Documentation - Footer Legal Content"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/translator/AppFooter.jsx, /app/frontend/src/components/legal/LegalLinkGroup.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Verify footer shows legal/support text and links"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Footer (data-testid='app-footer') found and visible. Footer displays brand name 'NO FRILLS ENGLISH/SPANISH TRANSLATOR' and support text about translation, premium access, refunds, and privacy requests. Contact email link (data-testid='legal-contact-email-link') displays 'Hvygoose@gmail.com' and is visible. Footer legal link group (data-testid='legal-link-group') found and visible with Privacy Policy and Terms of Service links."
+
+  - task: "Legal Documentation - Privacy Policy Page"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/PrivacyPolicy.js, /app/frontend/src/components/legal/LegalLayout.jsx, /app/frontend/src/components/legal/LegalSection.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test clicking Privacy Policy opens /privacy route and content renders correctly"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Clicking Privacy Policy link successfully navigates to /privacy route (https://bilingual-voice-6.preview.emergentagent.com/privacy). Legal page container (data-testid='legal-page') renders and is visible. Page title displays 'PRIVACY POLICY'. Back to translator link (data-testid='legal-home-link') displays '← BACK TO TRANSLATOR' and is visible. Found 5 legal sections (data-testid='legal-section'). Legal page meta shows brand name, last updated date (June 14, 2026), and contact email. Privacy Policy content length: 1,633 characters. All content renders correctly including sections: What we collect, How we use your information, Payments and premium, Data retention and deletion, Jurisdiction and contact."
+
+  - task: "Legal Documentation - Terms of Service Page"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/TermsOfService.js, /app/frontend/src/components/legal/LegalLayout.jsx, /app/frontend/src/components/legal/LegalSection.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Test clicking Terms of Service opens /terms route and content renders correctly"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Clicking Terms of Service link successfully navigates to /terms route (https://bilingual-voice-6.preview.emergentagent.com/terms). Legal page container (data-testid='legal-page') renders and is visible. Page title displays 'TERMS OF SERVICE'. Back to translator link (data-testid='legal-home-link') displays '← BACK TO TRANSLATOR' and is visible. Found 5 legal sections (data-testid='legal-section'). Legal page meta shows brand name, last updated date (June 14, 2026), and contact email. Terms of Service content length: 1,642 characters. All content renders correctly including sections: Using the service, Key terms at a glance, Premium purchases and refunds ($4.99 price displayed), Availability and changes, Limitation of liability and governing law. Back to homepage navigation works correctly."
+
+  - task: "Legal Documentation - Premium Modal Opening"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/translator/TranslatorHeader.jsx, /app/frontend/src/components/translator/PaymentModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Verify premium modal still opens from crown button after legal documentation additions"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Crown button (data-testid='premium-btn') successfully opens premium modal. Modal overlay (data-testid='payment-modal-overlay') appears and is visible. Premium modal opening functionality works correctly with no regressions from legal documentation additions."
+
+  - task: "Legal Documentation - Premium Modal Legal Content"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/translator/PaymentModal.jsx, /app/frontend/src/components/legal/LegalLinkGroup.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Verify premium modal includes legal links and checkout-related legal copy"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: Payment legal links section (data-testid='payment-legal-links') found and visible in premium modal. Legal text displays 'BY PURCHASING, YOU AGREE TO THE FOLLOWING:'. Legal link group (data-testid='legal-link-group') found and visible in modal. Privacy Policy link (data-testid='privacy-link') displays 'PRIVACY POLICY' and is visible. Terms of Service link (data-testid='terms-link') displays 'TERMS OF SERVICE' and is visible. All other modal elements still work: email input (data-testid='payment-email-input') found, checkout button displays 'PURCHASE PREMIUM - $4.99', restore button displays 'RESTORE PREVIOUS PURCHASE'. Legal documentation properly integrated into payment flow."
+
+  - task: "Legal Documentation - Layout Integrity"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/App.js, /app/frontend/src/components/translator/*.jsx, /app/frontend/src/components/legal/*.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "testing"
+        comment: "Comprehensive check for UI breakage from legal documentation additions"
+      - working: true
+        agent: "testing"
+        comment: "TESTED: No visible layout breakage detected from legal documentation additions. All major UI elements verified present and visible: translator-app container, premium button, phrasebook button, conversation button, status indicator, app footer. No console errors detected (1 total console log, 0 errors). Legal links properly integrated into header and footer without disrupting existing layout. Premium modal close button works correctly. All interactions functional. Legal documentation flow successfully integrated with zero UI regressions."
 
   - task: "Refactor - Translation Panes Render"
     implemented: true
@@ -348,21 +453,20 @@ frontend:
 
 metadata:
   created_by: "testing_agent"
-  version: "1.2"
-  test_sequence: 2
+  version: "1.3"
+  test_sequence: 3
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Refactor - API Root Endpoint"
-    - "Refactor - Translation Service (EN→ES)"
-    - "Refactor - Translation Service (ES→EN)"
-    - "Refactor - Translation Empty Text Handling"
-    - "Refactor - Text-to-Speech Service"
-    - "Refactor - Text-to-Speech Empty Text Validation"
-    - "Refactor - Speech-to-Text Service Error Handling"
-    - "Refactor - Payment Service Check Premium"
-    - "Refactor - History Service"
+    - "Legal Documentation - Homepage Load"
+    - "Legal Documentation - Header Legal Links"
+    - "Legal Documentation - Footer Legal Content"
+    - "Legal Documentation - Privacy Policy Page"
+    - "Legal Documentation - Terms of Service Page"
+    - "Legal Documentation - Premium Modal Opening"
+    - "Legal Documentation - Premium Modal Legal Content"
+    - "Legal Documentation - Layout Integrity"
   stuck_tasks: []
   test_all: false
   test_priority: "sequential"
@@ -376,3 +480,7 @@ agent_communication:
     message: "Starting backend structural refactor testing. Backend was refactored from single server.py into modular services: translation_service.py, speech_service.py, payment_service.py, history_service.py, conversation_service.py. Testing all core endpoints: GET /api/, POST /api/translate (EN→ES, ES→EN, empty text), POST /api/text-to-speech (valid, empty), POST /api/speech-to-text (no audio), POST /api/payments/check-premium (unknown email), GET /api/history."
   - agent: "testing"
     message: "BACKEND STRUCTURAL REFACTOR TESTING COMPLETE ✅ - All 9 backend tests passed successfully (100% success rate). Verified endpoints: 1) API Root (200 OK) 2) Translation EN→ES (working) 3) Translation ES→EN (working) 4) Empty text handling (working) 5) Text-to-Speech with valid text (working) 6) Text-to-Speech empty text validation (400 error as expected) 7) Speech-to-Text without audio (422 error as expected) 8) Check premium with unknown email (returns is_premium: false correctly) 9) History endpoint (returns list correctly). All services (translation_service, speech_service, payment_service, history_service) working correctly after refactor. No regressions detected. Server.py successfully acts as router importing from modular services."
+  - agent: "testing"
+    message: "Starting legal documentation flow testing on preview environment (https://bilingual-voice-6.preview.emergentagent.com). Testing newly added legal documentation features. Will verify: 1) Homepage loads correctly 2) Header shows visible legal links for Privacy Policy and Terms of Service 3) Footer shows legal/support text and links 4) Clicking Privacy Policy opens /privacy route and content renders 5) Clicking Terms of Service opens /terms route and content renders 6) Premium modal still opens from crown button 7) Premium modal includes legal links / checkout-related legal copy 8) No visible layout breakage from these additions."
+  - agent: "testing"
+    message: "LEGAL DOCUMENTATION FLOW TESTING COMPLETE ✅ - All 8 test categories passed successfully (100% success rate). Legal documentation flow working correctly: 1) Homepage loads with 187,693 chars content ✓ 2) Header legal links visible (Privacy Policy, Terms of Service) ✓ 3) Footer shows legal/support text with contact email (Hvygoose@gmail.com) and legal links ✓ 4) Privacy Policy page (/privacy) loads with 5 sections, 1,633 chars content, proper navigation ✓ 5) Terms of Service page (/terms) loads with 5 sections, 1,642 chars content, $4.99 price displayed ✓ 6) Premium modal opens from crown button ✓ 7) Premium modal includes legal links section with 'BY PURCHASING, YOU AGREE TO THE FOLLOWING:' text and Privacy/Terms links ✓ 8) No layout breakage, all major UI elements present, 0 console errors ✓. Legal components properly integrated: LegalLayout, LegalLinkGroup, LegalSection. Routes working: /privacy, /terms. Back navigation working. Legal content from legalContent.js displaying correctly. Zero regressions detected."

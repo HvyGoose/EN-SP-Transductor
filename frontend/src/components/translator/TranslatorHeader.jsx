@@ -1,4 +1,5 @@
 import { Book, Chats, Crown, Question, WifiSlash } from '@phosphor-icons/react';
+import { LegalLinkGroup } from '@/components/legal/LegalLinkGroup';
 import { ConnectionBadge } from '@/components/translator/ConnectionBadge';
 
 export const TranslatorHeader = ({
@@ -74,11 +75,14 @@ export const TranslatorHeader = ({
         {!isPremium && <Crown size={12} weight="fill" className="text-yellow-500" />}
       </button>
 
-      <div data-testid="translator-status" className="flex items-center gap-2">
-        <div className={`status-dot ${statusDotClass}`} />
-        <span className="text-xs font-mono uppercase tracking-wider hidden sm:inline">
-          {statusText}
-        </span>
+      <div className="header-meta-group">
+        <LegalLinkGroup />
+        <div data-testid="translator-status" className="flex items-center gap-2">
+          <div className={`status-dot ${statusDotClass}`} />
+          <span className="text-xs font-mono uppercase tracking-wider hidden sm:inline">
+            {statusText}
+          </span>
+        </div>
       </div>
     </div>
   </header>

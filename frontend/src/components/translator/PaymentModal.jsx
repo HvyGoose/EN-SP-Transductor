@@ -1,4 +1,5 @@
 import { Check, Crown, Envelope, X } from '@phosphor-icons/react';
+import { LegalLinkGroup } from '@/components/legal/LegalLinkGroup';
 
 export const PaymentModal = ({
   isProcessingPayment,
@@ -82,6 +83,11 @@ export const PaymentModal = ({
           >
             Restore Previous Purchase
           </button>
+
+          <div className="payment-legal-links" data-testid="payment-legal-links">
+            <p className="text-[11px] text-gray-500 font-mono uppercase tracking-wide">By purchasing, you agree to the following:</p>
+            <LegalLinkGroup />
+          </div>
         </div>
       </div>
     </div>

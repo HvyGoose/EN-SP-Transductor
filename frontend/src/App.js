@@ -1,6 +1,7 @@
 import { Toaster } from 'sonner';
 import '@/App.css';
 import { ConversationModal } from '@/components/translator/ConversationModal';
+import { AppFooter } from '@/components/translator/AppFooter';
 import { FreeTierBanner } from '@/components/translator/FreeTierBanner';
 import { PaymentModal } from '@/components/translator/PaymentModal';
 import { PhrasebookModal } from '@/components/translator/PhrasebookModal';
@@ -166,6 +167,7 @@ export default function App() {
       </main>
 
       <FreeTierBanner isPremium={state.isPremium} onUpgrade={paymentManager.openPaymentModal} />
+      <AppFooter />
     </div>
   );
 }
