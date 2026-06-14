@@ -125,6 +125,13 @@ function App() {
     return 'Ready';
   };
 
+  // Helper function to get status dot class
+  const getStatusDotClass = () => {
+    if (error) return 'error';
+    if (isTranslating) return 'loading';
+    return '';
+  };
+
   // Helper function to get hold-to-talk status text
   const getHoldToTalkText = () => {
     if (isListening) return 'Listening... Release to translate';
@@ -147,12 +154,12 @@ function App() {
   const handleOnline = useCallback(() => {
     setIsOnline(true);
     toast.success("Back online!");
-  }, []);
+  }, [setIsOnline]);
 
   const handleOffline = useCallback(() => {
     setIsOnline(false);
     toast.warning("You're offline. Using phrasebook mode.");
-  }, []);
+  }, [setIsOnline]);
 
   // Online/Offline detection
   useEffect(() => {
@@ -168,6 +175,7 @@ function App() {
   // Load phrasebook on mount
   useEffect(() => {
     offlineTranslator.loadPhrasebook();
+    // offlineTranslator is a module-level singleton, intentionally not in deps
   }, []);
 
   // Check premium status on mount
@@ -183,12 +191,15 @@ function App() {
             setIsPremium(true);
             localStorage.setItem('translator_premium', 'true');
           }
-        } catch (err) {
-          // Premium check failed - continue with free mode
+        } catch (error) {
+          // Premium check failed - user continues with free mode
+          // This is expected when offline or server unavailable
+          void error; // Acknowledge error was handled
         }
       }
     };
     checkPremiumStatus();
+    // API and axios are module-level constants, intentionally not in deps
   }, []);
 
   // Open payment modal (Crown button click)
@@ -280,7 +291,8 @@ function App() {
       return true;
     }
     return false;
-  }, [sourceLang]);
+    // offlineTranslator is module-level singleton, setters are stable
+  }, [sourceLang, setOfflineTranslation, setTranslatedText]);
 
   // Translation function
   const translateText = useCallback(async (text) => {
@@ -774,8 +786,10 @@ function App() {
         monitorAudioLevel();
         
         toast.success("Ready! Speak when ready.");
-      } catch (err) {
-        // Error handled silently
+      } catch (error) {
+        // Recorder restart failed - notify user
+        toast.error("Microphone error. Please try again.");
+        void error; // Acknowledge error was handled
       }
     }
   };
@@ -871,16 +885,18 @@ function App() {
 
   // Cleanup on unmount
   useEffect(() => {
-    const streamRef = conversationStreamRef;
-    const timeoutRef = silenceTimeoutRef;
+    // Capture refs at effect creation time for cleanup
+    const streamRefCurrent = conversationStreamRef.current;
+    const timeoutRefCurrent = silenceTimeoutRef.current;
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+      if (streamRefCurrent) {
+        streamRefCurrent.getTracks().forEach(track => track.stop());
       }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      if (timeoutRefCurrent) {
+        clearTimeout(timeoutRefCurrent);
       }
     };
+    // Cleanup effect runs once on unmount, refs are stable
   }, []);
 
   // Text-to-speech
@@ -1348,7 +1364,7 @@ function App() {
             {!isPremium && <Crown size={12} weight="fill" className="text-yellow-500" />}
           </button>
           <div className="flex items-center gap-2">
-            <div className={`status-dot ${error ? 'error' : isTranslating ? 'loading' : ''}`} />
+            <div className={`status-dot ${getStatusDotClass()}`} />
             <span className="text-xs font-mono uppercase tracking-wider hidden sm:inline">
               {getStatusText()}
             </span>

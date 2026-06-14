@@ -51,7 +51,8 @@ function PaymentSuccess() {
         setStatus('failed');
       }
     }
-  }, [sessionId, attempts]);
+    // API, axios, constants are module-level, setters are stable
+  }, [sessionId, attempts, setStatus, setAttempts]);
 
   // Poll payment status
   useEffect(() => {

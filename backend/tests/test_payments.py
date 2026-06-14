@@ -78,7 +78,7 @@ class TestCheckPremium:
         )
         assert r.status_code == 200
         data = r.json()
-        assert data.get("is_premium") is False
+        assert data.get("is_premium") == False
         assert "email" in data
 
     def test_check_premium_missing_email(self, session):

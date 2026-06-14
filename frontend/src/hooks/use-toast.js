@@ -135,16 +135,17 @@ function toast({
 function useToast() {
   const [state, setState] = React.useState(memoryState)
 
-  // Listener subscription
+  // Listener subscription - re-subscribes when state changes to get updates
   React.useEffect(() => {
     listeners.push(setState)
     return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
+      const idx = listeners.indexOf(setState)
+      if (idx > -1) {
+        listeners.splice(idx, 1)
       }
     };
-  }, [state])
+    // setState is stable, listeners is module-level
+  }, [state, setState])
 
   return {
     ...state,
