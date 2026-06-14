@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { offlineTranslator } from '@/services/offlineService';
@@ -23,17 +23,17 @@ export const useTranslatorEffects = ({
     sourceText
   } = state;
 
+  const handleOnline = useCallback(() => {
+    setIsOnline(true);
+    toast.success('Back online!');
+  }, [setIsOnline]);
+
+  const handleOffline = useCallback(() => {
+    setIsOnline(false);
+    toast.warning("You're offline. Using phrasebook mode.");
+  }, [setIsOnline]);
+
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      toast.success('Back online!');
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast.warning("You're offline. Using phrasebook mode.");
-    };
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
@@ -41,7 +41,7 @@ export const useTranslatorEffects = ({
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [setIsOnline]);
+  }, [handleOffline, handleOnline]);
 
   useEffect(() => {
     offlineTranslator.loadPhrasebook();
@@ -93,8 +93,9 @@ export const useTranslatorEffects = ({
   }, [debounceRef, skipNextDebounceRef, sourceText, translateText]);
 
   useEffect(() => () => {
-    if (stopRecordingTimeoutRef.current) {
-      clearTimeout(stopRecordingTimeoutRef.current);
+    const timeoutId = stopRecordingTimeoutRef.current;
+    if (timeoutId) {
+      clearTimeout(timeoutId);
     }
   }, [stopRecordingTimeoutRef]);
 };

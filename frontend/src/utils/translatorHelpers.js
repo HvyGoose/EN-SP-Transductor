@@ -1,11 +1,17 @@
+import {
+  HIGH_SENSITIVITY_THRESHOLD,
+  LOW_SENSITIVITY_THRESHOLD,
+  MEDIUM_SENSITIVITY_THRESHOLD
+} from '@/utils/translatorConstants';
+
 export const getTargetLanguage = (sourceLang) => (sourceLang === 'en' ? 'es' : 'en');
 
 export const getLanguageName = (lang) => (lang === 'en' ? 'English' : 'Spanish');
 
 export const getSensitivityLabel = (value) => {
-  if (value < 20) return 'Low';
-  if (value < 35) return 'Medium';
-  if (value < 50) return 'High';
+  if (value < LOW_SENSITIVITY_THRESHOLD) return 'Low';
+  if (value < MEDIUM_SENSITIVITY_THRESHOLD) return 'Medium';
+  if (value < HIGH_SENSITIVITY_THRESHOLD) return 'High';
   return 'Max';
 };
 

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useLatestValue } from '@/hooks/useLatestValue';
 import { offlineSpeechSynthesis } from '@/services/offlineService';
 import { API } from '@/utils/translatorConstants';
 import { getTargetLanguage } from '@/utils/translatorHelpers';
@@ -9,6 +10,11 @@ export const useAudioPlaybackManager = ({ refs, setters, state }) => {
   const { audioRef } = refs;
   const { setIsPlayingSource, setIsPlayingTarget } = setters;
   const targetLang = getTargetLanguage(state.sourceLang);
+  const isOnlineRef = useLatestValue(state.isOnline);
+  const offlineModeRef = useLatestValue(state.offlineMode);
+  const sourceTextRef = useLatestValue(state.sourceText);
+  const translatedTextRef = useLatestValue(state.translatedText);
+  const sourceLangRef = useLatestValue(state.sourceLang);
 
   const playAudio = useCallback(async (text, lang, setPlaying) => {
     if (!text.trim()) {
@@ -18,7 +24,7 @@ export const useAudioPlaybackManager = ({ refs, setters, state }) => {
 
     setPlaying(true);
 
-    if (!state.isOnline || state.offlineMode) {
+    if (!isOnlineRef.current || offlineModeRef.current) {
       try {
         await offlineSpeechSynthesis.speak(text, lang);
       } catch (error) {
@@ -56,27 +62,27 @@ export const useAudioPlaybackManager = ({ refs, setters, state }) => {
         setPlaying(false);
       }
     }
-  }, [audioRef, state.isOnline, state.offlineMode]);
+  }, [audioRef, isOnlineRef, offlineModeRef]);
 
   const handlePlaySource = useCallback(() => {
     if (!state.isPlayingSource) {
-      playAudio(state.sourceText, state.sourceLang, setIsPlayingSource);
+      playAudio(sourceTextRef.current, sourceLangRef.current, setIsPlayingSource);
       return;
     }
 
     audioRef.current.pause();
     setIsPlayingSource(false);
-  }, [audioRef, playAudio, setIsPlayingSource, state.isPlayingSource, state.sourceLang, state.sourceText]);
+  }, [audioRef, playAudio, setIsPlayingSource, sourceLangRef, sourceTextRef, state.isPlayingSource]);
 
   const handlePlayTarget = useCallback(() => {
     if (!state.isPlayingTarget) {
-      playAudio(state.translatedText, targetLang, setIsPlayingTarget);
+      playAudio(translatedTextRef.current, targetLang, setIsPlayingTarget);
       return;
     }
 
     audioRef.current.pause();
     setIsPlayingTarget(false);
-  }, [audioRef, playAudio, setIsPlayingTarget, state.isPlayingTarget, state.translatedText, targetLang]);
+  }, [audioRef, playAudio, setIsPlayingTarget, state.isPlayingTarget, targetLang, translatedTextRef]);
 
   return {
     handlePlaySource,

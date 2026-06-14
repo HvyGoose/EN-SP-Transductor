@@ -1,10 +1,12 @@
 import { useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { useLatestValue } from '@/hooks/useLatestValue';
 import { API } from '@/utils/translatorConstants';
 import { isValidEmail } from '@/utils/translatorHelpers';
 
 export const usePaymentManager = ({ setters, state }) => {
+  const paymentEmailRef = useLatestValue(state.paymentEmail);
   const {
     setIsPremium,
     setIsProcessingPayment,
@@ -28,7 +30,8 @@ export const usePaymentManager = ({ setters, state }) => {
   }, [setPaymentEmail, setShowPaymentModal]);
 
   const initiateCheckout = useCallback(async () => {
-    if (!isValidEmail(state.paymentEmail)) {
+    const paymentEmail = paymentEmailRef.current;
+    if (!isValidEmail(paymentEmail)) {
       toast.error('Please enter a valid email');
       return;
     }
@@ -36,7 +39,7 @@ export const usePaymentManager = ({ setters, state }) => {
     setIsProcessingPayment(true);
 
     try {
-      const normalizedEmail = state.paymentEmail.toLowerCase();
+      const normalizedEmail = paymentEmail.toLowerCase();
       const response = await axios.post(`${API}/payments/create-checkout`, {
         origin_url: window.location.origin,
         email: normalizedEmail
@@ -48,10 +51,11 @@ export const usePaymentManager = ({ setters, state }) => {
       toast.error('Failed to start checkout. Please try again.');
       setIsProcessingPayment(false);
     }
-  }, [setIsProcessingPayment, state.paymentEmail]);
+  }, [paymentEmailRef, setIsProcessingPayment]);
 
   const checkPremiumByEmail = useCallback(async () => {
-    if (!isValidEmail(state.paymentEmail)) {
+    const paymentEmail = paymentEmailRef.current;
+    if (!isValidEmail(paymentEmail)) {
       toast.error('Please enter a valid email');
       return;
     }
@@ -59,7 +63,7 @@ export const usePaymentManager = ({ setters, state }) => {
     setIsProcessingPayment(true);
 
     try {
-      const normalizedEmail = state.paymentEmail.toLowerCase();
+      const normalizedEmail = paymentEmail.toLowerCase();
       const response = await axios.post(`${API}/payments/check-premium`, {
         email: normalizedEmail
       });
@@ -79,7 +83,7 @@ export const usePaymentManager = ({ setters, state }) => {
     } finally {
       setIsProcessingPayment(false);
     }
-  }, [setIsPremium, setIsProcessingPayment, setPremiumEmail, setShowPaymentModal, state.paymentEmail]);
+  }, [paymentEmailRef, setIsPremium, setIsProcessingPayment, setPremiumEmail, setShowPaymentModal]);
 
   return {
     checkPremiumByEmail,

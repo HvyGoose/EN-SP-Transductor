@@ -1,4 +1,5 @@
 import re
+from typing import Any, Dict, Optional, Tuple
 
 from services.history_service import save_translation_history
 from services.speech_service import create_audio_file, synthesize_speech_base64, transcribe_audio_bytes
@@ -43,47 +44,78 @@ STOP_TRIGGERS = [
 ]
 
 
-def normalize_transcript_text(raw_text):
+def normalize_transcript_text(raw_text: str) -> str:
     normalized = re.sub(r'[^\w\s]', '', raw_text.lower()).strip()
     return re.sub(r'\s+', ' ', normalized)
 
 
-def is_handsfree_hallucination(text):
+def is_handsfree_hallucination(text: str) -> bool:
     return any(pattern in text for pattern in HANDSFREE_HALLUCINATIONS)
 
 
-def detect_trigger(text, raw_text, logger):
-    for trigger in STOP_TRIGGERS:
-        clean_trigger = re.sub(r'[^\w\s]', '', trigger).strip()
-        if clean_trigger in text or text == clean_trigger:
-            logger.info(f"STOP trigger detected: '{clean_trigger}' in '{text}'")
-            return {'trigger': 'stop', 'text': raw_text}
+def _matches_trigger(text: str, trigger: str) -> bool:
+    clean_trigger = re.sub(r'[^\w\s]', '', trigger).strip()
+    return clean_trigger in text or text == clean_trigger
 
-    for trigger in START_TRIGGERS:
-        clean_trigger = re.sub(r'[^\w\s]', '', trigger).strip()
-        if clean_trigger in text or text == clean_trigger:
-            logger.info(f"START trigger detected: '{clean_trigger}' in '{text}'")
-            return {'trigger': 'start', 'text': raw_text}
 
-    text_words = text.split()
+def _detect_from_trigger_list(text: str, raw_text: str, logger: Any, triggers: list[str], trigger_type: str) -> Optional[Dict[str, str]]:
+    for trigger in triggers:
+        if _matches_trigger(text, trigger):
+            clean_trigger = re.sub(r'[^\w\s]', '', trigger).strip()
+            logger.info(f"{trigger_type.upper()} trigger detected: '{clean_trigger}' in '{text}'")
+            return {'trigger': trigger_type, 'text': raw_text}
+    return None
+
+
+def _detect_stop_word_match(text_words: list[str], text: str, raw_text: str, logger: Any) -> Optional[Dict[str, str]]:
     if any(word in ['stop', 'para', 'alto', 'done', 'finish', 'end', 'finished'] for word in text_words):
         logger.info(f"STOP trigger (word match) in: '{text}'")
         return {'trigger': 'stop', 'text': raw_text}
+    return None
 
+
+def _detect_start_word_match(text_words: list[str], text: str, raw_text: str, logger: Any) -> Optional[Dict[str, str]]:
     if any(word in ['translator', 'translate', 'traductor'] for word in text_words) and any(
         word in ['listen', 'listening', 'escucha', 'start', 'lissen'] for word in text_words
     ):
         logger.info(f"START trigger (word match) in: '{text}'")
         return {'trigger': 'start', 'text': raw_text}
+    return None
 
+
+def _detect_single_word_start(text: str, raw_text: str, logger: Any) -> Optional[Dict[str, str]]:
     if text in ['listen', 'listening', 'escucha', 'escuchar']:
         logger.info(f"START trigger (single word) in: '{text}'")
         return {'trigger': 'start', 'text': raw_text}
+    return None
+
+
+def detect_trigger(text: str, raw_text: str, logger: Any) -> Dict[str, Optional[str]]:
+    stop_match = _detect_from_trigger_list(text, raw_text, logger, STOP_TRIGGERS, 'stop')
+    if stop_match:
+        return stop_match
+
+    start_match = _detect_from_trigger_list(text, raw_text, logger, START_TRIGGERS, 'start')
+    if start_match:
+        return start_match
+
+    text_words = text.split()
+    stop_word_match = _detect_stop_word_match(text_words, text, raw_text, logger)
+    if stop_word_match:
+        return stop_word_match
+
+    start_word_match = _detect_start_word_match(text_words, text, raw_text, logger)
+    if start_word_match:
+        return start_word_match
+
+    single_word_start = _detect_single_word_start(text, raw_text, logger)
+    if single_word_start:
+        return single_word_start
 
     return {'trigger': None, 'text': raw_text}
 
 
-def clean_handsfree_text(original_text):
+def clean_handsfree_text(original_text: str) -> str:
     cleaned_text = original_text
     for phrase in HANDSFREE_TRIGGER_PHRASES:
         cleaned_text = cleaned_text.lower().replace(phrase, '').strip()
@@ -96,28 +128,45 @@ def clean_handsfree_text(original_text):
     return cleaned_text[0].upper() + cleaned_text[1:] if len(cleaned_text) > 1 else cleaned_text.upper()
 
 
-def resolve_language_pair(detected_language):
+def resolve_language_pair(detected_language: Optional[str]) -> Tuple[str, str]:
     if detected_language in {'spanish', 'es'}:
         return 'es', 'en'
     return 'en', 'es'
 
 
-def is_conversation_hallucination(original_text):
+def _is_empty_or_too_short(clean_text: str, original_text: str) -> bool:
+    return not original_text or len(clean_text) < 3 or original_text in ['.', '..', '...', '. .', '. . .']
+
+
+def _matches_known_hallucination(clean_text: str) -> bool:
+    return clean_text in CONVERSATION_HALLUCINATIONS or any(clean_text == pattern for pattern in CONVERSATION_HALLUCINATIONS)
+
+
+def _starts_like_hallucination(clean_text: str) -> bool:
+    return any(clean_text.startswith(f'{pattern} ') for pattern in ['thank', 'thanks', 'subscribe', 'like'])
+
+
+def _is_only_punctuation(original_text: str) -> bool:
+    return all(character in '.,!?¿¡ \n\t' for character in original_text)
+
+
+def _is_single_word_hallucination(clean_text: str) -> bool:
+    return len(clean_text.split()) == 1 and clean_text in CONVERSATION_HALLUCINATIONS
+
+
+def is_conversation_hallucination(original_text: str) -> bool:
     lower_text = original_text.lower().strip()
     clean_text = re.sub(r'[^\w\s]', '', lower_text).strip()
     return (
-        not original_text
-        or len(clean_text) < 3
-        or original_text in ['.', '..', '...', '. .', '. . .']
-        or clean_text in CONVERSATION_HALLUCINATIONS
-        or any(clean_text == pattern for pattern in CONVERSATION_HALLUCINATIONS)
-        or any(clean_text.startswith(f'{pattern} ') for pattern in ['thank', 'thanks', 'subscribe', 'like'])
-        or all(character in '.,!?¿¡ \n\t' for character in original_text)
-        or (len(clean_text.split()) == 1 and clean_text in CONVERSATION_HALLUCINATIONS)
+        _is_empty_or_too_short(clean_text, original_text)
+        or _matches_known_hallucination(clean_text)
+        or _starts_like_hallucination(clean_text)
+        or _is_only_punctuation(original_text)
+        or _is_single_word_hallucination(clean_text)
     )
 
 
-async def process_handsfree_check(audio, api_key, logger):
+async def process_handsfree_check(audio: Any, api_key: str, logger: Any) -> Dict[str, Optional[str]]:
     audio_content = await audio.read()
     if len(audio_content) < MIN_HANDSFREE_AUDIO_BYTES:
         return {'trigger': None, 'text': ''}
@@ -134,7 +183,7 @@ async def process_handsfree_check(audio, api_key, logger):
     return detect_trigger(text, raw_text, logger)
 
 
-async def process_handsfree_translation(audio, api_key, db):
+async def process_handsfree_translation(audio: Any, api_key: str, db: Any) -> Dict[str, Any]:
     audio_content = await audio.read()
     if len(audio_content) < MIN_CONVERSATION_AUDIO_BYTES:
         return {'skipped': True}
@@ -165,7 +214,7 @@ async def process_handsfree_translation(audio, api_key, db):
     }
 
 
-async def process_conversation_audio(audio, api_key, db, logger):
+async def process_conversation_audio(audio: Any, api_key: str, db: Any, logger: Any) -> Dict[str, Any]:
     audio_content = await audio.read()
     if len(audio_content) < MIN_CONVERSATION_AUDIO_BYTES:
         return {

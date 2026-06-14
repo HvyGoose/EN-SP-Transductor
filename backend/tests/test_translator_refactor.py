@@ -155,7 +155,7 @@ class TestPaymentsEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert "is_premium" in data
-        assert data["is_premium"] == False
+        assert not data["is_premium"]
         assert data["email"] == "TEST_unknown_user@example.com"
         print("SUCCESS: check-premium returns is_premium=false for unknown email")
     

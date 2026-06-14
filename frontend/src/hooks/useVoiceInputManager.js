@@ -8,8 +8,11 @@ import {
   VOICE_MIN_AUDIO_BLOB_SIZE
 } from '@/utils/translatorConstants';
 import { createRecorder, stopMediaTracks } from '@/utils/audioRecorder';
+import { useLatestValue } from '@/hooks/useLatestValue';
 
 export const useVoiceInputManager = ({ refs, setters, state, translateText }) => {
+  const sourceLangRef = useLatestValue(state.sourceLang);
+  const isRecordingRef = useLatestValue(state.isRecording);
   const {
     audioChunksRef,
     isStartingRecordingRef,
@@ -29,7 +32,7 @@ export const useVoiceInputManager = ({ refs, setters, state, translateText }) =>
 
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.webm');
-    formData.append('language', state.sourceLang);
+    formData.append('language', sourceLangRef.current);
 
     try {
       setError(null);
@@ -51,10 +54,10 @@ export const useVoiceInputManager = ({ refs, setters, state, translateText }) =>
       const detail = error.response?.data?.detail;
       toast.error(typeof detail === 'string' && detail.length > 0 ? detail : 'Voice recognition failed');
     }
-  }, [setError, setSourceText, skipNextDebounceRef, state.sourceLang, translateText]);
+  }, [setError, setSourceText, skipNextDebounceRef, sourceLangRef, translateText]);
 
   const startRecording = useCallback(async () => {
-    if (state.isRecording || isStartingRecordingRef.current) {
+    if (isRecordingRef.current || isStartingRecordingRef.current) {
       return;
     }
 
@@ -113,11 +116,11 @@ export const useVoiceInputManager = ({ refs, setters, state, translateText }) =>
       setIsRecording(false);
       toast.error('Microphone access denied');
     }
-  }, [audioChunksRef, isStartingRecordingRef, mediaRecorderRef, recordingStartedAtRef, recordingStreamRef, setIsRecording, state.isRecording, submitVoiceRecording]);
+  }, [audioChunksRef, isRecordingRef, isStartingRecordingRef, mediaRecorderRef, recordingStartedAtRef, recordingStreamRef, setIsRecording, submitVoiceRecording]);
 
   const stopRecording = useCallback(() => {
     const recorder = mediaRecorderRef.current;
-    if (!recorder || !state.isRecording || recorder.state !== 'recording') {
+    if (!recorder || !isRecordingRef.current || recorder.state !== 'recording') {
       return;
     }
 
@@ -144,23 +147,25 @@ export const useVoiceInputManager = ({ refs, setters, state, translateText }) =>
     }
 
     stopRecorder();
-  }, [mediaRecorderRef, recordingStartedAtRef, state.isRecording, stopRecordingTimeoutRef]);
+  }, [isRecordingRef, mediaRecorderRef, recordingStartedAtRef, stopRecordingTimeoutRef]);
 
   const handleMicClick = useCallback(() => {
-    if (state.isRecording) {
+    if (isRecordingRef.current) {
       stopRecording();
       return;
     }
 
     startRecording();
-  }, [startRecording, state.isRecording, stopRecording]);
+  }, [isRecordingRef, startRecording, stopRecording]);
 
   useEffect(() => () => {
-    if (recordingStreamRef.current) {
-      stopMediaTracks(recordingStreamRef.current);
+    const stream = recordingStreamRef.current;
+    const timeoutId = stopRecordingTimeoutRef.current;
+    if (stream) {
+      stopMediaTracks(stream);
     }
-    if (stopRecordingTimeoutRef.current) {
-      clearTimeout(stopRecordingTimeoutRef.current);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
     }
   }, [recordingStreamRef, stopRecordingTimeoutRef]);
 

@@ -9,12 +9,15 @@ import {
 import {
   getTargetLanguage
 } from '@/utils/translatorHelpers';
+import { useLatestValue } from '@/hooks/useLatestValue';
 
 export const useTranslationActions = ({ refs, setters, state }) => {
-  const { targetLang, sourceLang } = {
-    sourceLang: state.sourceLang,
-    targetLang: getTargetLanguage(state.sourceLang)
-  };
+  const sourceLang = state.sourceLang;
+  const targetLang = getTargetLanguage(sourceLang);
+  const isOnlineRef = useLatestValue(state.isOnline);
+  const offlineModeRef = useLatestValue(state.offlineMode);
+  const sourceTextRef = useLatestValue(state.sourceText);
+  const translatedTextRef = useLatestValue(state.translatedText);
   const { setCopied, setError, setIsTranslating, setOfflineTranslation, setSourceLang, setSourceText, setTranslatedText } = setters;
 
   const translateText = useCallback(async (text) => {
@@ -24,7 +27,7 @@ export const useTranslationActions = ({ refs, setters, state }) => {
       return;
     }
 
-    if (!state.isOnline || state.offlineMode) {
+    if (!isOnlineRef.current || offlineModeRef.current) {
       setIsTranslating(true);
       const result = offlineTranslator.translate(text, sourceLang);
       setOfflineTranslation(result);
@@ -65,7 +68,7 @@ export const useTranslationActions = ({ refs, setters, state }) => {
     } finally {
       setIsTranslating(false);
     }
-  }, [setError, setIsTranslating, setOfflineTranslation, setTranslatedText, sourceLang, state.isOnline, state.offlineMode, targetLang]);
+  }, [offlineModeRef, isOnlineRef, setError, setIsTranslating, setOfflineTranslation, setTranslatedText, sourceLang, targetLang]);
 
   const handleSourceChange = useCallback((event) => {
     setSourceText(event.target.value);
@@ -73,24 +76,25 @@ export const useTranslationActions = ({ refs, setters, state }) => {
 
   const handleSwap = useCallback(() => {
     setSourceLang(targetLang);
-    setSourceText(state.translatedText);
-    setTranslatedText(state.sourceText);
-  }, [setSourceLang, setSourceText, setTranslatedText, state.sourceText, state.translatedText, targetLang]);
+    setSourceText(translatedTextRef.current);
+    setTranslatedText(sourceTextRef.current);
+  }, [setSourceLang, setSourceText, setTranslatedText, sourceTextRef, targetLang, translatedTextRef]);
 
   const handleCopy = useCallback(async () => {
-    if (!state.translatedText) {
+    const textToCopy = translatedTextRef.current;
+    if (!textToCopy) {
       return;
     }
 
     try {
-      await navigator.clipboard.writeText(state.translatedText);
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       toast.success('Copied to clipboard');
       setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION);
     } catch (error) {
       toast.error('Failed to copy');
     }
-  }, [setCopied, state.translatedText]);
+  }, [setCopied, translatedTextRef]);
 
   return {
     handleCopy,

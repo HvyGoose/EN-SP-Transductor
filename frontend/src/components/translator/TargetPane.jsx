@@ -1,5 +1,34 @@
 import { Check, Copy, SpeakerHigh, WifiSlash } from '@phosphor-icons/react';
 
+const getOfflineBadgeLabel = (offlineTranslation) => (
+  offlineTranslation?.confidence === 'exact' ? 'Exact match' : 'Similar phrase'
+);
+
+const renderOfflineHint = (offlineTranslation, onOpenPhrasebook) => {
+  if (!offlineTranslation?.notFound) {
+    return null;
+  }
+
+  return (
+    <p className="text-xs text-gray-500 mt-2" data-testid="offline-phrasebook-hint">
+      Try a common phrase or <button className="underline" onClick={onOpenPhrasebook}>browse the phrasebook</button>
+    </p>
+  );
+};
+
+const renderOfflineBadge = (offlineTranslation) => {
+  if (!offlineTranslation || offlineTranslation.notFound) {
+    return null;
+  }
+
+  return (
+    <span className="offline-badge" data-testid="offline-translation-badge">
+      <WifiSlash size={12} />
+      {getOfflineBadgeLabel(offlineTranslation)}
+    </span>
+  );
+};
+
 export const TargetPane = ({
   copied,
   isPlayingTarget,
@@ -14,12 +43,7 @@ export const TargetPane = ({
   <div className="translator-pane">
     <div className="pane-header">
       <span data-testid="target-language-label" className="lang-label">{targetLangName}</span>
-      {offlineTranslation && !offlineTranslation.notFound && (
-        <span className="offline-badge" data-testid="offline-translation-badge">
-          <WifiSlash size={12} />
-          {offlineTranslation.confidence === 'exact' ? 'Exact match' : 'Similar phrase'}
-        </span>
-      )}
+      {renderOfflineBadge(offlineTranslation)}
     </div>
 
     <div className="pane-content">
@@ -30,11 +54,7 @@ export const TargetPane = ({
         {translatedText || `${targetLangName} translation will appear here...`}
       </div>
 
-      {offlineTranslation?.notFound && (
-        <p className="text-xs text-gray-500 mt-2" data-testid="offline-phrasebook-hint">
-          Try a common phrase or <button className="underline" onClick={onOpenPhrasebook}>browse the phrasebook</button>
-        </p>
-      )}
+      {renderOfflineHint(offlineTranslation, onOpenPhrasebook)}
     </div>
 
     <div className="pane-toolbar">

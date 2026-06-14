@@ -1,4 +1,5 @@
 import uuid
+from typing import Tuple
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
@@ -6,11 +7,11 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage
 LANGUAGE_NAMES = {'en': 'English', 'es': 'Spanish'}
 
 
-def resolve_language_names(source_lang, target_lang):
+def resolve_language_names(source_lang: str, target_lang: str) -> Tuple[str, str]:
     return LANGUAGE_NAMES.get(source_lang, 'English'), LANGUAGE_NAMES.get(target_lang, 'Spanish')
 
 
-async def translate_text_content(api_key, text, source_lang, target_lang, *, session_prefix='translate'):
+async def translate_text_content(api_key: str, text: str, source_lang: str, target_lang: str, *, session_prefix: str = 'translate') -> str:
     source_name, target_name = resolve_language_names(source_lang, target_lang)
     chat = LlmChat(
         api_key=api_key,

@@ -1,11 +1,19 @@
 import { WifiSlash, WifiHigh } from '@phosphor-icons/react';
 
+const getConnectionContent = ({ isOnline, offlineMode }) => {
+  if (offlineMode) {
+    return { icon: <WifiSlash size={14} />, label: 'Offline' };
+  }
+
+  if (isOnline) {
+    return { icon: <WifiHigh size={14} />, label: 'Online' };
+  }
+
+  return { icon: <WifiSlash size={14} />, label: 'No Connection' };
+};
+
 export const ConnectionBadge = ({ isOnline, offlineMode }) => {
-  const content = offlineMode
-    ? { icon: <WifiSlash size={14} />, label: 'Offline' }
-    : isOnline
-      ? { icon: <WifiHigh size={14} />, label: 'Online' }
-      : { icon: <WifiSlash size={14} />, label: 'No Connection' };
+  const content = getConnectionContent({ isOnline, offlineMode });
 
   return (
     <div
