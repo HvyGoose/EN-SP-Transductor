@@ -3,7 +3,7 @@ import os
 import pytest
 import requests
 
-BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://real-time-translate-6.preview.emergentagent.com").rstrip("/")
+BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://bilingual-voice-6.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api"
 
 
@@ -18,7 +18,7 @@ def session():
 class TestCreateCheckout:
     def test_create_checkout_success(self, session):
         payload = {
-            "origin_url": "https://real-time-translate-6.preview.emergentagent.com",
+            "origin_url": "https://bilingual-voice-6.preview.emergentagent.com",
             "email": "TEST_payments_user@example.com",
         }
         r = session.post(f"{API}/payments/create-checkout", json=payload, timeout=30)
@@ -39,7 +39,7 @@ class TestCreateCheckout:
     def test_create_checkout_anonymous_email(self, session):
         r = session.post(
             f"{API}/payments/create-checkout",
-            json={"origin_url": "https://real-time-translate-6.preview.emergentagent.com"},
+            json={"origin_url": "https://bilingual-voice-6.preview.emergentagent.com"},
             timeout=30,
         )
         assert r.status_code == 200
