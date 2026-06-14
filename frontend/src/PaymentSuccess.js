@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Check, X } from '@phosphor-icons/react';
@@ -20,51 +19,44 @@ function PaymentSuccess() {
   const [attempts, setAttempts] = useState(0);
   const sessionId = searchParams.get('session_id');
 
-  // Poll payment status - deps are intentional for polling pattern
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
+  // Check payment status callback
+  const checkPaymentStatus = useCallback(async () => {
     if (!sessionId) {
       setStatus('failed');
       return;
     }
 
-    const checkPaymentStatus = async () => {
-      try {
-        const response = await axios.get(`${API}/payments/status/${sessionId}`);
-        
-        if (response.data.payment_status === 'paid') {
-          setStatus('success');
-          // Store premium status locally
-          localStorage.setItem('translator_premium', 'true');
-          // Store session for verification
-          localStorage.setItem('translator_session_id', sessionId);
-        } else if (response.data.status === 'expired') {
-          setStatus('failed');
-        } else if (attempts < MAX_POLL_ATTEMPTS) {
-          // Keep polling - setTimeout setState is intentional for polling
-          // eslint-disable-next-line react-hooks/exhaustive-deps
-          setTimeout(() => setAttempts(a => a + 1), POLL_INTERVAL_MS);
-        } else {
-          setStatus('failed');
-        }
-      } catch (err) {
-        // If 404, the session doesn't exist - fail immediately
-        if (err.response && err.response.status === HTTP_NOT_FOUND) {
-          setStatus('failed');
-          return;
-        }
-        // For other errors, retry a few times
-        if (attempts < MAX_ERROR_RETRIES) {
-          // eslint-disable-next-line react-hooks/exhaustive-deps
-          setTimeout(() => setAttempts(a => a + 1), POLL_INTERVAL_MS);
-        } else {
-          setStatus('failed');
-        }
+    try {
+      const response = await axios.get(`${API}/payments/status/${sessionId}`);
+      
+      if (response.data.payment_status === 'paid') {
+        setStatus('success');
+        localStorage.setItem('translator_premium', 'true');
+        localStorage.setItem('translator_session_id', sessionId);
+      } else if (response.data.status === 'expired') {
+        setStatus('failed');
+      } else if (attempts < MAX_POLL_ATTEMPTS) {
+        setTimeout(() => setAttempts(a => a + 1), POLL_INTERVAL_MS);
+      } else {
+        setStatus('failed');
       }
-    };
-
-    checkPaymentStatus();
+    } catch (err) {
+      if (err.response && err.response.status === HTTP_NOT_FOUND) {
+        setStatus('failed');
+        return;
+      }
+      if (attempts < MAX_ERROR_RETRIES) {
+        setTimeout(() => setAttempts(a => a + 1), POLL_INTERVAL_MS);
+      } else {
+        setStatus('failed');
+      }
+    }
   }, [sessionId, attempts]);
+
+  // Poll payment status
+  useEffect(() => {
+    checkPaymentStatus();
+  }, [checkPaymentStatus]);
 
   const goHome = () => {
     navigate('/');

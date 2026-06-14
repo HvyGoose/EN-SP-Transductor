@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useCallback, useRef } from "react";
 import "@/App.css";
 import axios from "axios";
@@ -144,18 +143,19 @@ function App() {
     return <><WifiSlash size={14} /> <span className="hidden sm:inline">No Connection</span></>;
   };
 
-  // Online/Offline detection - event handlers defined inside, no external deps needed
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Online/Offline event handlers
+  const handleOnline = useCallback(() => {
+    setIsOnline(true);
+    toast.success("Back online!");
+  }, []);
+
+  const handleOffline = useCallback(() => {
+    setIsOnline(false);
+    toast.warning("You're offline. Using phrasebook mode.");
+  }, []);
+
+  // Online/Offline detection
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      if (!offlineMode) toast.success("Back online!");
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast.warning("You're offline. Using phrasebook mode.");
-    };
-    
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
@@ -163,16 +163,14 @@ function App() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [offlineMode]);
+  }, [handleOnline, handleOffline]);
 
-  // Load phrasebook on mount - intentionally runs once
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Load phrasebook on mount
   useEffect(() => {
     offlineTranslator.loadPhrasebook();
   }, []);
 
-  // Check premium status on mount (if email is saved) - intentionally runs once
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Check premium status on mount
   useEffect(() => {
     const checkPremiumStatus = async () => {
       const savedEmail = localStorage.getItem('translator_email');
@@ -186,7 +184,7 @@ function App() {
             localStorage.setItem('translator_premium', 'true');
           }
         } catch (err) {
-          console.error('Premium check failed:', err);
+          // Premium check failed - continue with free mode
         }
       }
     };
@@ -225,7 +223,7 @@ function App() {
       window.location.href = response.data.checkout_url;
       
     } catch (err) {
-      console.error('Checkout error:', err);
+      // Error handled silently
       toast.error('Failed to start checkout. Please try again.');
       setIsProcessingPayment(false);
     }
@@ -256,7 +254,7 @@ function App() {
         toast.info('No premium found for this email. You can purchase below.');
       }
     } catch (err) {
-      console.error('Premium check error:', err);
+      // Error handled silently
       toast.error('Could not verify. Please try again.');
     } finally {
       setIsProcessingPayment(false);
@@ -274,7 +272,6 @@ function App() {
   };
 
   // Offline translation using phrasebook
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const translateOffline = useCallback((text) => {
     const result = offlineTranslator.translate(text, sourceLang);
     setOfflineTranslation(result);
@@ -285,8 +282,7 @@ function App() {
     return false;
   }, [sourceLang]);
 
-  // Translation function - deps are intentional to prevent infinite loops
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Translation function
   const translateText = useCallback(async (text) => {
     if (!text.trim()) {
       setTranslatedText("");
@@ -321,7 +317,7 @@ function App() {
       });
       setTranslatedText(response.data.translated_text);
     } catch (err) {
-      console.error("Translation error:", err);
+      // Error handled silently
       // Fallback to offline translation on error
       const result = offlineTranslator.translate(text, sourceLang);
       setOfflineTranslation(result);
@@ -410,7 +406,7 @@ function App() {
           setSourceText(response.data.text);
           toast.success("Voice transcribed");
         } catch (err) {
-          console.error("STT error:", err);
+          // Error handled silently
           toast.error("Voice recognition failed");
         }
       };
@@ -419,7 +415,7 @@ function App() {
       setIsRecording(true);
       toast.info("Recording... Click again to stop");
     } catch (err) {
-      console.error("Microphone access error:", err);
+      // Error handled silently
       toast.error("Microphone access denied");
     }
   };
@@ -480,7 +476,7 @@ function App() {
       handsFreeModeRef.current = false;
       toast.success("Press & Hold mode ready! Hold the mic to speak.");
     } catch (err) {
-      console.error("Microphone access error:", err);
+      // Error handled silently
       toast.error("Microphone access denied");
     }
   };
@@ -576,7 +572,7 @@ function App() {
       monitorAudioLevel();
       
     } catch (err) {
-      console.error("Failed to start silence detection:", err);
+      // Error handled silently
       toast.error("Could not start audio monitoring");
     }
   };
@@ -739,7 +735,7 @@ function App() {
       restartListening();
       
     } catch (err) {
-      console.error("Translation error:", err);
+      // Error handled silently
       toast.error("Translation failed");
       restartListening();
     }
@@ -779,7 +775,7 @@ function App() {
         
         toast.success("Ready! Speak when ready.");
       } catch (err) {
-        console.error("Failed to restart recorder:", err);
+        // Error handled silently
       }
     }
   };
@@ -852,7 +848,7 @@ function App() {
           setIsProcessing(false);
         }
       } catch (err) {
-        console.error("Conversation error:", err);
+        // Error handled silently
         toast.error("Translation failed");
         setIsProcessing(false);
       }
@@ -873,15 +869,16 @@ function App() {
     }
   };
 
-  // Cleanup on unmount - intentionally empty deps, runs once on unmount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Cleanup on unmount
   useEffect(() => {
+    const streamRef = conversationStreamRef;
+    const timeoutRef = silenceTimeoutRef;
     return () => {
-      if (conversationStreamRef.current) {
-        conversationStreamRef.current.getTracks().forEach(track => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
       }
-      if (silenceTimeoutRef.current) {
-        clearTimeout(silenceTimeoutRef.current);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
       }
     };
   }, []);
@@ -901,7 +898,7 @@ function App() {
         await offlineSpeechSynthesis.speak(text, lang);
         setPlaying(false);
       } catch (err) {
-        console.error("Offline TTS error:", err);
+        // Error handled silently
         setPlaying(false);
         toast.error("Speech not available offline");
       }
@@ -934,7 +931,7 @@ function App() {
       };
       await audioRef.current.play();
     } catch (err) {
-      console.error("TTS error:", err);
+      // Error handled silently
       // Fallback to browser speech synthesis
       try {
         await offlineSpeechSynthesis.speak(text, lang);
