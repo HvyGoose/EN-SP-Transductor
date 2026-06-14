@@ -18,6 +18,8 @@ Build a quick English to Spanish real-time translator with:
 - **PWA**: Service worker, manifest, installable on mobile
 - **Offline**: Browser Speech APIs + cached phrasebook (250+ phrases)
 - **Payments**: Stripe Checkout for premium upgrade ($4.99 one-time)
+- **Frontend Structure**: App shell + focused hooks/components (`useTranslatorState`, `useTranslationActions`, `useVoiceInputManager`, `useConversationManager`, etc.)
+- **Backend Structure**: Router + modular services (`translation_service`, `speech_service`, `conversation_service`, `payment_service`, `history_service`)
 
 ## User Personas
 - Language learners needing quick translations
@@ -51,6 +53,12 @@ Build a quick English to Spanish real-time translator with:
 - ✅ Emergent deployment health scan passed with no code-level blockers found
 - ✅ Environment variable usage, supervisor config, CORS, and MongoDB wiring validated
 - ✅ No hardcoded secrets/URLs or compilation blockers detected by deployment scan
+
+### Jun 2026 - Structural Refactor for Code Review
+- ✅ Refactored `frontend/src/App.js` from a monolith into focused translator components and hooks
+- ✅ Split backend `server.py` logic into dedicated models and service modules
+- ✅ Preserved translation, speech, payment, premium gating, and history flows after refactor
+- ✅ Regression-tested preview successfully across frontend and backend after refactor
 
 ### Jan 2026 - MVP & Features
 - ✅ GPT-5.2 powered translation API
@@ -120,12 +128,12 @@ Build a quick English to Spanish real-time translator with:
 
 ## Prioritized Backlog
 - P0: ✅ COMPLETE - MVP + Hands-Free + PWA + Offline + Stripe Payments
-- P1: Deploy to production, submit to app stores
+- P1: Redeploy latest refactor + voice fix to production, submit to app stores
 - P2: Native mobile app via Mobile Agent for full offline AI
 
 ## Next Tasks
-1. Redeploy latest preview voice-input fix to production
-2. Manually verify Chrome mic flow in production with a full short phrase
+1. Redeploy latest preview build to production so the refactor and mic fixes reach live users
+2. Re-run the production Chrome voice test after redeploy
 3. Submit to Microsoft Store (PWABuilder)
 4. Submit to Google Play (TWA wrapper)
 5. Add legal pages (Privacy Policy / Terms) for sales readiness
