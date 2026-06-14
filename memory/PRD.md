@@ -67,6 +67,12 @@ Build a quick English to Spanish real-time translator with:
 - ✅ Added Python type hints across backend service files and reduced high-complexity helpers
 - ✅ Re-tested after code-review fixes: frontend/backend passed again with no regressions
 
+### Jun 2026 - Legal Documentation and Sales Readiness
+- ✅ Added Privacy Policy and Terms of Service pages with business/contact/jurisdiction details
+- ✅ Added visible legal links in the app header, footer, and premium checkout modal
+- ✅ Added refund policy wording (case-by-case) and payment-related legal notice near checkout
+- ✅ Tested legal routes and legal-link flow successfully in preview
+
 ### Jan 2026 - MVP & Features
 - ✅ GPT-5.2 powered translation API
 - ✅ Whisper speech-to-text API
@@ -135,15 +141,15 @@ Build a quick English to Spanish real-time translator with:
 
 ## Prioritized Backlog
 - P0: ✅ COMPLETE - MVP + Hands-Free + PWA + Offline + Stripe Payments
-- P1: Redeploy latest refactor + voice fix to production, submit to app stores
+- P1: Redeploy latest preview updates to production, submit to app stores
 - P2: Native mobile app via Mobile Agent for full offline AI
 
 ## Next Tasks
-1. Redeploy latest preview build to production so the refactor and mic fixes reach live users
-2. Re-run the production Chrome voice test after redeploy
-3. Submit to Microsoft Store (PWABuilder)
-4. Submit to Google Play (TWA wrapper)
-5. Add legal pages (Privacy Policy / Terms) for sales readiness
+1. Redeploy latest preview build to production so legal pages/links are live
+2. Submit to Microsoft Store (PWABuilder)
+3. Submit to Google Play (TWA wrapper)
+4. Optionally add cross-links between legal pages for easier navigation
+5. Optionally add a lightweight diagnostics panel for future mic troubleshooting
 
 ## Future Enhancements
 - Build native iOS/Android app via Mobile Agent for Option 3 full offline
