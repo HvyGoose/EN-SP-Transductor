@@ -1,12 +1,16 @@
 {
-  "name": "Translator - English Spanish",
-  "short_name": "Translator",
-  "description": "Real-time English-Spanish translator with hands-free voice translation",
+  "id": "/",
+  "name": "No Frills English/Spanish Translator",
+  "short_name": "No Frills Translator",
+  "description": "Fast English and Spanish translation with voice input, playback, premium conversation tools, and offline phrasebook access.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "theme_color": "#123cba",
   "orientation": "portrait-primary",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icons/icon-72.png",
@@ -57,7 +61,7 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["utilities", "productivity"],
+  "categories": ["utilities", "productivity", "travel"],
   "lang": "en",
   "dir": "ltr"
 }

@@ -1,27 +1,62 @@
-const CACHE_NAME = 'translator-v1';
-const urlsToCache = [
+const CACHE_NAME = 'translator-v2';
+const APP_SHELL_URLS = [
   '/',
   '/index.html',
-  '/static/js/main.js',
-  '/static/css/main.css'
+  '/manifest.json',
+  '/guide.html',
+  '/phrasebook.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png'
 ];
 
-// Install event - cache resources
+const APP_SHELL_FALLBACK = '/';
+
+const isSameOriginRequest = (requestUrl) => new URL(requestUrl).origin === self.location.origin;
+
+const isStaticAssetRequest = (requestUrl) => {
+  const url = new URL(requestUrl);
+  return url.pathname.startsWith('/icons/') || ['/manifest.json', '/guide.html', '/phrasebook.json'].includes(url.pathname);
+};
+
+const cacheFirst = async (request) => {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  const networkResponse = await fetch(request);
+  if (networkResponse && networkResponse.status === 200) {
+    const responseToCache = networkResponse.clone();
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(request, responseToCache);
+  }
+  return networkResponse;
+};
+
+const networkFirstNavigation = async (request) => {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    const fallbackResponse = await caches.match(request);
+    if (fallbackResponse) {
+      return fallbackResponse;
+    }
+    return caches.match(APP_SHELL_FALLBACK);
+  }
+};
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
-      .catch((err) => {
-        console.log('Cache install error:', err);
-      })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL_URLS)).catch(() => undefined)
   );
   self.skipWaiting();
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -38,33 +73,21 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests and API calls
   if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Return cached version or fetch from network
-        if (response) {
-          return response;
-        }
-        return fetch(event.request).then((response) => {
-          // Don't cache non-successful responses
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-          // Clone and cache the response
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          return response;
-        });
-      })
-  );
+  if (!isSameOriginRequest(event.request.url)) {
+    return;
+  }
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(networkFirstNavigation(event.request));
+    return;
+  }
+
+  if (isStaticAssetRequest(event.request.url)) {
+    event.respondWith(cacheFirst(event.request));
+  }
 });

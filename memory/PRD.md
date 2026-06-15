@@ -79,6 +79,12 @@ Build a quick English to Spanish real-time translator with:
 - ✅ Generated glossy royal-blue / gold-crown app icon asset for store branding
 - ✅ Saved store submission materials to `/app/memory/STORE_SUBMISSION_PACK.md`
 
+### Jun 2026 - PWABuilder Packaging Hardening
+- ✅ Improved manifest metadata for packaging readiness (`id`, `scope`, `display_override`, `prefer_related_applications`, stronger naming/theme data)
+- ✅ Simplified service worker caching to avoid brittle hard-coded build asset paths
+- ✅ Moved service worker registration to immediate startup to improve PWA detection
+- ✅ Verified preview and production PWA endpoints respond for manifest/service worker/legal routes
+
 ### Jan 2026 - MVP & Features
 - ✅ GPT-5.2 powered translation API
 - ✅ Whisper speech-to-text API

@@ -15,14 +15,8 @@ if (process.env.NODE_ENV === 'production') {
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(() => {
-        // ServiceWorker registered successfully
-      })
-      .catch(() => {
-        // ServiceWorker registration failed
-      });
+  navigator.serviceWorker.register('/service-worker.js').catch(() => {
+    // ServiceWorker registration failed
   });
 }
 
