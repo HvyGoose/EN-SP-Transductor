@@ -39,7 +39,7 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY')
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY')
 PREMIUM_PRICE = 4.99
 
@@ -67,7 +67,7 @@ async def translate_text(request: TranslationRequest):
 
     try:
         translated_text = await translate_text_content(
-            EMERGENT_LLM_KEY,
+            OPENAI_API_KEY,
             request.text,
             request.source_lang,
             request.target_lang,
@@ -93,7 +93,7 @@ async def translate_text(request: TranslationRequest):
 @api_router.post('/speech-to-text')
 async def speech_to_text(audio: UploadFile = File(...), language: str = 'en'):
     try:
-        transcript, normalized_language = await transcribe_upload(EMERGENT_LLM_KEY, audio, language=language)
+        transcript, normalized_language = await transcribe_upload(OPENAI_API_KEY, audio, language=language)
         return {'text': transcript, 'language': normalized_language}
     except HTTPException:
         raise
@@ -105,7 +105,7 @@ async def speech_to_text(audio: UploadFile = File(...), language: str = 'en'):
 @api_router.post('/handsfree-check')
 async def handsfree_check(audio: UploadFile = File(...)):
     try:
-        return await process_handsfree_check(audio, EMERGENT_LLM_KEY, logger)
+        return await process_handsfree_check(audio, OPENAI_API_KEY, logger)
     except Exception as error:
         logger.error(f'Handsfree check error: {error}')
         return {'trigger': None, 'text': ''}
@@ -114,7 +114,7 @@ async def handsfree_check(audio: UploadFile = File(...)):
 @api_router.post('/handsfree-translate')
 async def handsfree_translate(audio: UploadFile = File(...)):
     try:
-        return await process_handsfree_translation(audio, EMERGENT_LLM_KEY, db)
+        return await process_handsfree_translation(audio, OPENAI_API_KEY, db)
     except Exception as error:
         logger.error(f'Handsfree translate error: {error}')
         raise HTTPException(status_code=500, detail=str(error))
@@ -123,7 +123,7 @@ async def handsfree_translate(audio: UploadFile = File(...)):
 @api_router.post('/conversation')
 async def conversation_mode(audio: UploadFile = File(...)):
     try:
-        return await process_conversation_audio(audio, EMERGENT_LLM_KEY, db, logger)
+        return await process_conversation_audio(audio, OPENAI_API_KEY, db, logger)
     except Exception as error:
         logger.error(f'Conversation mode error: {error}')
         raise HTTPException(status_code=500, detail=f'Conversation mode failed: {error}')
@@ -135,7 +135,7 @@ async def text_to_speech(request: TTSRequest):
         raise HTTPException(status_code=400, detail='Text cannot be empty')
 
     try:
-        audio_base64 = await synthesize_speech_base64(EMERGENT_LLM_KEY, request.text)
+        audio_base64 = await synthesize_speech_base64(OPENAI_API_KEY, request.text)
         return {'audio': audio_base64, 'format': 'mp3'}
     except Exception as error:
         logger.error(f'Text-to-speech error: {error}')

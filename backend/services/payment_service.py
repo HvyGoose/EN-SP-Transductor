@@ -1,9 +1,13 @@
-from datetime import datetime, timezone
+"""Premium payments via the Stripe library directly (no Emergent wrapper)."""
+import asyncio
+import os
 import uuid
+from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any, Dict
 
+import stripe
 from fastapi import HTTPException
-from emergentintegrations.payments.stripe.checkout import CheckoutSessionRequest, StripeCheckout
 
 
 NOT_FOUND_ERROR_TOKENS = ('resource', 'not found', 'invalid', 'no such')
@@ -14,20 +18,47 @@ def build_webhook_url(base_url: Any) -> str:
     return f'{host_url}/api/webhook/stripe'
 
 
-async def create_checkout_session(db: Any, api_key: str, origin_url: str, request_base_url: Any, email: str, premium_price: float, logger: Any) -> Dict[str, Any]:
-    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=build_webhook_url(request_base_url))
-    checkout_request = CheckoutSessionRequest(
-        amount=premium_price,
-        currency='usd',
+def _webhook_secret() -> str:
+    secret = os.environ.get('STRIPE_WEBHOOK_SECRET')
+    if not secret:
+        raise RuntimeError('STRIPE_WEBHOOK_SECRET is not set')
+    return secret
+
+
+def _create_session(api_key: str, premium_price: float, origin_url: str, email: str):
+    stripe.api_key = api_key
+    return stripe.checkout.Session.create(
+        mode='payment',
+        line_items=[{
+            'price_data': {
+                'currency': 'usd',
+                'unit_amount': int(round(premium_price * 100)),
+                'product_data': {'name': 'Translator Premium'},
+            },
+            'quantity': 1,
+        }],
         success_url=f'{origin_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}',
         cancel_url=f'{origin_url}/',
-        metadata={'product': 'translator_premium', 'email': email or 'anonymous'}
+        customer_email=email or None,
+        metadata={'product': 'translator_premium', 'email': email or 'anonymous'},
     )
-    session = await stripe_checkout.create_checkout_session(checkout_request)
+
+
+def _retrieve_session(api_key: str, session_id: str):
+    stripe.api_key = api_key
+    return stripe.checkout.Session.retrieve(session_id)
+
+
+def _construct_event(payload: bytes, signature: str):
+    return stripe.Webhook.construct_event(payload, signature, _webhook_secret())
+
+
+async def create_checkout_session(db: Any, api_key: str, origin_url: str, request_base_url: Any, email: str, premium_price: float, logger: Any) -> Dict[str, Any]:
+    session = await asyncio.to_thread(_create_session, api_key, premium_price, origin_url, email)
 
     await db.payment_transactions.insert_one({
         'id': str(uuid.uuid4()),
-        'session_id': session.session_id,
+        'session_id': session.id,
         'email': email,
         'amount': premium_price,
         'currency': 'usd',
@@ -35,8 +66,8 @@ async def create_checkout_session(db: Any, api_key: str, origin_url: str, reques
         'payment_status': 'pending',
         'created_at': datetime.now(timezone.utc).isoformat(),
     })
-    logger.info(f'Checkout session created: {session.session_id}')
-    return {'checkout_url': session.url, 'session_id': session.session_id}
+    logger.info(f'Checkout session created: {session.id}')
+    return {'checkout_url': session.url, 'session_id': session.id}
 
 
 async def activate_premium_user_if_paid(db: Any, session_id: str, status: Any, logger: Any) -> None:
@@ -80,8 +111,14 @@ def is_missing_checkout_error(error: Exception) -> bool:
 
 async def get_checkout_status(db: Any, api_key: str, session_id: str, request_base_url: Any, logger: Any) -> Dict[str, Any]:
     try:
-        stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=build_webhook_url(request_base_url))
-        status = await stripe_checkout.get_checkout_status(session_id)
+        session = await asyncio.to_thread(_retrieve_session, api_key, session_id)
+        status = SimpleNamespace(
+            status=session.status,
+            payment_status=session.payment_status,
+            amount_total=session.amount_total,
+            currency=session.currency,
+            metadata=dict(session.metadata or {}),
+        )
         update_data = {
             'payment_status': status.payment_status,
             'status': status.status,
@@ -105,16 +142,20 @@ async def check_premium_status(db: Any, email: str) -> Dict[str, Any]:
 
 
 async def process_stripe_webhook(db: Any, api_key: str, request_base_url: Any, body: bytes, signature: str, logger: Any) -> Dict[str, Any]:
-    stripe_checkout = StripeCheckout(api_key=api_key, webhook_url=build_webhook_url(request_base_url))
-    webhook_response = await stripe_checkout.handle_webhook(body, signature)
-    logger.info(f'Webhook received: {webhook_response.event_type}, session: {webhook_response.session_id}')
+    stripe.api_key = api_key
+    event = await asyncio.to_thread(_construct_event, body, signature)
+    event_type = event['type']
+    session_obj = event.get('data', {}).get('object', {}) or {}
+    session_id = session_obj.get('id')
+    payment_status = session_obj.get('payment_status')
+    logger.info(f'Webhook received: {event_type}, session: {session_id}')
 
-    if webhook_response.session_id:
+    if session_id:
         await db.payment_transactions.update_one(
-            {'session_id': webhook_response.session_id},
+            {'session_id': session_id},
             {'$set': {
-                'payment_status': webhook_response.payment_status,
-                'webhook_event': webhook_response.event_type,
+                'payment_status': payment_status,
+                'webhook_event': event_type,
                 'updated_at': datetime.now(timezone.utc).isoformat(),
             }}
         )

@@ -1,9 +1,10 @@
+"""Speech-to-text and text-to-speech via the OpenAI API directly (no Emergent proxy)."""
 import base64
 import io
 from typing import Any, Optional, Tuple
 
 from fastapi import HTTPException
-from emergentintegrations.llm.openai import OpenAISpeechToText, OpenAITextToSpeech
+from openai import AsyncOpenAI
 
 
 MIN_STT_AUDIO_BYTES = 1200
@@ -30,20 +31,21 @@ async def transcribe_audio_bytes(
     if len(audio_content) < MIN_STT_AUDIO_BYTES:
         raise HTTPException(status_code=400, detail='Audio too short. Hold the mic a little longer and try again.')
 
-    stt = OpenAISpeechToText(api_key=api_key)
+    client = AsyncOpenAI(api_key=api_key)
     request_data = {
         'file': create_audio_file(audio_content, filename),
         'model': 'whisper-1',
         'response_format': response_format,
-        'prompt': prompt,
         'temperature': 0.0,
     }
+    if prompt:
+        request_data['prompt'] = prompt
 
     normalized_language = (language or '').lower()
     if normalized_language in VALID_STT_LANGUAGES:
         request_data['language'] = normalized_language
 
-    response = await stt.transcribe(**request_data)
+    response = await client.audio.transcriptions.create(**request_data)
     transcript = response.text.strip()
     if not transcript:
         raise HTTPException(status_code=422, detail='No speech detected. Please try again.')
@@ -63,6 +65,11 @@ async def transcribe_upload(api_key: str, audio: Any, *, language: Optional[str]
 
 
 async def synthesize_speech_base64(api_key: str, text: str, *, voice: str = DEFAULT_TTS_VOICE) -> str:
-    tts = OpenAITextToSpeech(api_key=api_key)
-    audio_bytes = await tts.generate_speech(text=text, model='tts-1', voice=voice, response_format='mp3')
-    return base64.b64encode(audio_bytes).decode('utf-8')
+    client = AsyncOpenAI(api_key=api_key)
+    response = await client.audio.speech.create(
+        model='tts-1',
+        voice=voice,
+        response_format='mp3',
+        input=text,
+    )
+    return base64.b64encode(response.content).decode('utf-8')
