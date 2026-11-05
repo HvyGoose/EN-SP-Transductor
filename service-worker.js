@@ -1,4 +1,7 @@
 const CACHE_NAME = 'translator-v2';
+// The service worker only controls URLs under its registration scope, so
+// prefix all shell URLs with that scope's base path (e.g. /EN-SP-Transductor).
+const BASE = self.registration.scope.replace(/\/$/, '');
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
@@ -7,15 +10,17 @@ const APP_SHELL_URLS = [
   '/phrasebook.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
-];
+].map((p) => BASE + p);
 
-const APP_SHELL_FALLBACK = '/';
+const APP_SHELL_FALLBACK = BASE + '/';
 
 const isSameOriginRequest = (requestUrl) => new URL(requestUrl).origin === self.location.origin;
 
 const isStaticAssetRequest = (requestUrl) => {
   const url = new URL(requestUrl);
-  return url.pathname.startsWith('/icons/') || ['/manifest.json', '/guide.html', '/phrasebook.json'].includes(url.pathname);
+  const path = url.pathname.startsWith(BASE) ? url.pathname.slice(BASE.length) : null;
+  if (!path) return false;
+  return path.startsWith('/icons/') || ['/manifest.json', '/guide.html', '/phrasebook.json'].includes(path);
 };
 
 const cacheFirst = async (request) => {
