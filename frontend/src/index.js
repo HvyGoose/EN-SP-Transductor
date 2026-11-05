@@ -15,15 +15,21 @@ if (process.env.NODE_ENV === 'production') {
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js').catch(() => {
+  navigator.serviceWorker.register(`${process.env.PUBLIC_URL}/service-worker.js`).catch(() => {
     // ServiceWorker registration failed
   });
 }
 
+// GitHub Pages serves the app under /EN-SP-Transductor, so the router
+// needs that path as its basename (empty when served from a domain root).
+const basename = process.env.PUBLIC_URL
+  ? new URL(process.env.PUBLIC_URL).pathname.replace(/\/$/, "")
+  : "";
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/payment-success" element={<PaymentSuccess />} />
