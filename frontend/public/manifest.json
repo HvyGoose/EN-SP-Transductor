@@ -61,6 +61,30 @@
       "purpose": "any maskable"
     }
   ],
+  "related_applications": [],
+  "screenshots": [
+    {
+      "src": "./screenshots/desktop-main.png",
+      "sizes": "1600x900",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "No Frills English/Spanish Translator main screen"
+    },
+    {
+      "src": "./screenshots/desktop-privacy.png",
+      "sizes": "1600x900",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Privacy policy page"
+    },
+    {
+      "src": "./screenshots/mobile-main.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Translator on a mobile device"
+    }
+  ],
   "categories": ["utilities", "productivity", "travel"],
   "lang": "en",
   "dir": "ltr"
