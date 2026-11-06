@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.nofrillstranslator.twa",
+        "sha256_cert_fingerprints": ["E8:5E:44:06:27:F2:97:D1:47:AA:CD:D1:95:10:B7:40:85:56:91:A3:F5:E2:1E:9C:5A:1E:1A:60:AD:51:D8:3B"]
+      }
+    }]
