@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "https://hvygoose.github.io/EN-SP-Transductor/static/css/main.1313553b.css",
-    "main.js": "https://hvygoose.github.io/EN-SP-Transductor/static/js/main.621b7f05.js",
-    "index.html": "https://hvygoose.github.io/EN-SP-Transductor/index.html",
-    "main.1313553b.css.map": "https://hvygoose.github.io/EN-SP-Transductor/static/css/main.1313553b.css.map",
-    "main.621b7f05.js.map": "https://hvygoose.github.io/EN-SP-Transductor/static/js/main.621b7f05.js.map"
+    "main.css": "https://nofrillstranslator.com/static/css/main.1313553b.css",
+    "main.js": "https://nofrillstranslator.com/static/js/main.999a3f1d.js",
+    "index.html": "https://nofrillstranslator.com/index.html",
+    "main.1313553b.css.map": "https://nofrillstranslator.com/static/css/main.1313553b.css.map",
+    "main.999a3f1d.js.map": "https://nofrillstranslator.com/static/js/main.999a3f1d.js.map"
   },
   "entrypoints": [
     "static/css/main.1313553b.css",
-    "static/js/main.621b7f05.js"
+    "static/js/main.999a3f1d.js"
   ]
 }
